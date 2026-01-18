@@ -20,7 +20,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles({"dev", "test"})
+@ActiveProfiles({ "dev", "test" })
 @Transactional
 class RatingRepositoryTest {
 

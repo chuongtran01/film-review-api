@@ -7,6 +7,7 @@ import com.filmreview.entity.User;
 import com.filmreview.repository.RatingRepository;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.security.JwtTokenProvider;
+import com.filmreview.util.TestDataUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,14 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles({"dev", "test"})
+@ActiveProfiles({ "dev", "test" })
 @Transactional
 class RatingControllerTest {
 
@@ -54,22 +54,21 @@ class RatingControllerTest {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  private TestDataUtil testDataUtil;
   private User testUser;
   private String accessToken;
   private UUID titleId;
 
   @BeforeEach
   void setUp() {
-    ratingRepository.deleteAll();
-    userRepository.deleteAll();
-    jdbcTemplate.update("DELETE FROM titles");
+    // Initialize test data utility
+    testDataUtil = new TestDataUtil(jdbcTemplate, passwordEncoder, userRepository);
 
-    // Create test user
-    testUser = new User();
-    testUser.setEmail("test@example.com");
-    testUser.setUsername("testuser");
-    testUser.setPasswordHash(passwordEncoder.encode("password123"));
-    testUser = userRepository.save(testUser);
+    // Clean up test data
+    testDataUtil.cleanup();
+
+    // Create test user using utility
+    testUser = testDataUtil.createAndSaveUser("test@example.com", "testuser");
 
     // Generate JWT token
     List<String> roles = List.of("USER");
@@ -81,11 +80,8 @@ class RatingControllerTest {
         roles,
         permissions);
 
-    // Create test title
-    titleId = UUID.randomUUID();
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId, 1, "Test Movie", "test-movie");
+    // Create test title using utility
+    titleId = testDataUtil.createTitle(UUID.randomUUID(), 1, "Test Movie", "test-movie");
   }
 
   @Test
@@ -94,9 +90,9 @@ class RatingControllerTest {
     request.setScore(8);
 
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
+        .header("Authorization", "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.score").value(8))
         .andExpect(jsonPath("$.userId").value(testUser.getId().toString()))
@@ -119,9 +115,9 @@ class RatingControllerTest {
     request2.setScore(9);
 
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request2)))
+        .header("Authorization", "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request2)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.score").value(9));
   }
@@ -132,9 +128,9 @@ class RatingControllerTest {
     request.setScore(0);
 
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
+        .header("Authorization", "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
   }
 
@@ -144,9 +140,9 @@ class RatingControllerTest {
     request.setScore(11);
 
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
+        .header("Authorization", "Bearer " + accessToken)
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest());
   }
 
@@ -156,8 +152,8 @@ class RatingControllerTest {
     request.setScore(8);
 
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(request)))
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isForbidden()); // 403 - @PreAuthorize returns Forbidden when not authenticated
   }
 
@@ -171,7 +167,7 @@ class RatingControllerTest {
     ratingRepository.save(rating);
 
     mockMvc.perform(delete("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken))
+        .header("Authorization", "Bearer " + accessToken))
         .andExpect(status().isNoContent());
 
     // Verify deleted
@@ -181,7 +177,7 @@ class RatingControllerTest {
   @Test
   void testDeleteRating_NotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken))
+        .header("Authorization", "Bearer " + accessToken))
         .andExpect(status().isNotFound());
   }
 
@@ -195,7 +191,7 @@ class RatingControllerTest {
     ratingRepository.save(rating);
 
     mockMvc.perform(get("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken))
+        .header("Authorization", "Bearer " + accessToken))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.score").value(8))
         .andExpect(jsonPath("$.userId").value(testUser.getId().toString()))
@@ -205,22 +201,15 @@ class RatingControllerTest {
   @Test
   void testGetRating_NotFound() throws Exception {
     mockMvc.perform(get("/api/v1/ratings/{titleId}", titleId)
-            .header("Authorization", "Bearer " + accessToken))
+        .header("Authorization", "Bearer " + accessToken))
         .andExpect(status().isNotFound());
   }
 
   @Test
   void testGetUserRatings() throws Exception {
     // Create multiple titles and ratings
-    UUID titleId2 = UUID.randomUUID();
-    UUID titleId3 = UUID.randomUUID();
-
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId2, 2, "Test Movie 2", "test-movie-2");
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId3, 3, "Test Movie 3", "test-movie-3");
+    UUID titleId2 = testDataUtil.createTitle(UUID.randomUUID(), 2, "Test Movie 2", "test-movie-2");
+    UUID titleId3 = testDataUtil.createTitle(UUID.randomUUID(), 3, "Test Movie 3", "test-movie-3");
 
     Rating rating1 = new Rating();
     rating1.setUserId(testUser.getId());
@@ -241,9 +230,9 @@ class RatingControllerTest {
     ratingRepository.save(rating3);
 
     mockMvc.perform(get("/api/v1/ratings")
-            .header("Authorization", "Bearer " + accessToken)
-            .param("page", "0")
-            .param("size", "10"))
+        .header("Authorization", "Bearer " + accessToken)
+        .param("page", "0")
+        .param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(3))
@@ -254,10 +243,7 @@ class RatingControllerTest {
   void testGetUserRatings_Pagination() throws Exception {
     // Create 5 titles and ratings
     for (int i = 0; i < 5; i++) {
-      UUID testTitleId = UUID.randomUUID();
-      jdbcTemplate.update(
-          "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-          testTitleId, 10 + i, "Test Movie " + i, "test-movie-" + i);
+      UUID testTitleId = testDataUtil.createTitle(UUID.randomUUID(), 10 + i, "Test Movie " + i, "test-movie-" + i);
       Rating rating = new Rating();
       rating.setUserId(testUser.getId());
       rating.setTitleId(testTitleId);
@@ -266,9 +252,9 @@ class RatingControllerTest {
     }
 
     mockMvc.perform(get("/api/v1/ratings")
-            .header("Authorization", "Bearer " + accessToken)
-            .param("page", "0")
-            .param("size", "2"))
+        .header("Authorization", "Bearer " + accessToken)
+        .param("page", "0")
+        .param("size", "2"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2))
         .andExpect(jsonPath("$.totalElements").value(5))
@@ -278,11 +264,7 @@ class RatingControllerTest {
   @Test
   void testGetTitleRatings_Public() throws Exception {
     // Create ratings from multiple users
-    User user2 = new User();
-    user2.setEmail("user2@example.com");
-    user2.setUsername("user2");
-    user2.setPasswordHash(passwordEncoder.encode("password123"));
-    user2 = userRepository.save(user2);
+    User user2 = testDataUtil.createAndSaveUser("user2@example.com", "user2");
 
     // Title already created in setUp()
     Rating rating1 = new Rating();
@@ -299,8 +281,8 @@ class RatingControllerTest {
 
     // Public endpoint - no auth required
     mockMvc.perform(get("/api/v1/ratings/titles/{titleId}", titleId)
-            .param("page", "0")
-            .param("size", "10"))
+        .param("page", "0")
+        .param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(2))
@@ -310,8 +292,8 @@ class RatingControllerTest {
   @Test
   void testGetTitleRatings_Empty() throws Exception {
     mockMvc.perform(get("/api/v1/ratings/titles/{titleId}", titleId)
-            .param("page", "0")
-            .param("size", "10"))
+        .param("page", "0")
+        .param("size", "10"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content").isArray())
         .andExpect(jsonPath("$.content.length()").value(0))

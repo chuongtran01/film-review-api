@@ -24,7 +24,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles({"dev", "test"})
+@ActiveProfiles({ "dev", "test" })
 @Transactional
 class RatingServiceTest {
 
@@ -104,8 +104,8 @@ class RatingServiceTest {
     RatingRequest request = new RatingRequest();
     request.setScore(0);
 
-    assertThrows(BadRequestException.class, () ->
-        ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+    assertThrows(BadRequestException.class,
+        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
   }
 
   @Test
@@ -113,8 +113,8 @@ class RatingServiceTest {
     RatingRequest request = new RatingRequest();
     request.setScore(11);
 
-    assertThrows(BadRequestException.class, () ->
-        ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+    assertThrows(BadRequestException.class,
+        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
   }
 
   @Test
@@ -122,8 +122,8 @@ class RatingServiceTest {
     RatingRequest request = new RatingRequest();
     request.setScore(null);
 
-    assertThrows(BadRequestException.class, () ->
-        ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+    assertThrows(BadRequestException.class,
+        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
   }
 
   @Test
@@ -142,8 +142,7 @@ class RatingServiceTest {
 
   @Test
   void testDeleteRating_NotFound() {
-    assertThrows(NotFoundException.class, () ->
-        ratingService.deleteRating(testUser.getId(), titleId));
+    assertThrows(NotFoundException.class, () -> ratingService.deleteRating(testUser.getId(), titleId));
   }
 
   @Test
@@ -204,8 +203,7 @@ class RatingServiceTest {
 
   @Test
   void testGetRating_NotFound() {
-    assertThrows(NotFoundException.class, () ->
-        ratingService.getRating(testUser.getId(), titleId));
+    assertThrows(NotFoundException.class, () -> ratingService.getRating(testUser.getId(), titleId));
   }
 
   @Test
