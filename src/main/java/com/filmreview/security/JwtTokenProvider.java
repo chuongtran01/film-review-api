@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -28,15 +29,18 @@ public class JwtTokenProvider {
     return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
   }
 
-  public String generateAccessToken(UUID userId, String username, String email) {
-    return generateToken(userId, username, email, accessTokenExpiration);
+  public String generateAccessToken(UUID userId, String username, String email, List<String> roles,
+      List<String> permissions) {
+    return generateToken(userId, username, email, roles, permissions, accessTokenExpiration);
   }
 
-  public String generateRefreshToken(UUID userId, String username, String email) {
-    return generateToken(userId, username, email, refreshTokenExpiration);
+  public String generateRefreshToken(UUID userId, String username, String email, List<String> roles,
+      List<String> permissions) {
+    return generateToken(userId, username, email, roles, permissions, refreshTokenExpiration);
   }
 
-  private String generateToken(UUID userId, String username, String email, long expiration) {
+  private String generateToken(UUID userId, String username, String email, List<String> roles, List<String> permissions,
+      long expiration) {
     Date now = new Date();
     Date expiryDate = new Date(now.getTime() + expiration);
 
@@ -44,6 +48,8 @@ public class JwtTokenProvider {
         .subject(userId.toString())
         .claim("username", username)
         .claim("email", email)
+        .claim("roles", roles != null ? roles : List.of("USER"))
+        .claim("permissions", permissions != null ? permissions : List.of())
         .issuedAt(now)
         .expiration(expiryDate)
         .signWith(getSigningKey())
@@ -61,6 +67,28 @@ public class JwtTokenProvider {
 
   public String getEmailFromToken(String token) {
     return getClaimFromToken(token, claims -> claims.get("email", String.class));
+  }
+
+  @SuppressWarnings("unchecked")
+  public List<String> getRolesFromToken(String token) {
+    return getClaimFromToken(token, claims -> {
+      Object roles = claims.get("roles");
+      if (roles instanceof List) {
+        return (List<String>) roles;
+      }
+      return List.of("USER");
+    });
+  }
+
+  @SuppressWarnings("unchecked")
+  public List<String> getPermissionsFromToken(String token) {
+    return getClaimFromToken(token, claims -> {
+      Object permissions = claims.get("permissions");
+      if (permissions instanceof List) {
+        return (List<String>) permissions;
+      }
+      return List.of();
+    });
   }
 
   public Date getExpirationDateFromToken(String token) {

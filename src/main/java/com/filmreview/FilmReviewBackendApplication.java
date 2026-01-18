@@ -6,11 +6,12 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
-@EnableJpaAuditing
+@EnableScheduling // Enable Spring's scheduled task execution
+@EnableJpaAuditing // Enable Spring Data JPA Auditing
 public class FilmReviewBackendApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(FilmReviewBackendApplication.class, args);
     }
+
 }

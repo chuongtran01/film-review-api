@@ -48,6 +48,9 @@ dependencies {
     // Spring Retry
     implementation 'org.springframework.retry:spring-retry'
     
+    // Spring AOP for aspect-oriented programming
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

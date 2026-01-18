@@ -5,8 +5,9 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
 
-    <!-- Include individual changelog files here -->
-    <include file="db/changelog/changes/V1__Initial_schema.sql" relativeToChangelogFile="false"/>
-    <include file="db/changelog/changes/V2__Trigger_functions.xml" relativeToChangelogFile="false"/>
+        <!-- Include individual changelog files here -->
+        <include file="db/changelog/changes/V1__Initial_schema.sql" relativeToChangelogFile="false"/>
+        <include file="db/changelog/changes/V2__Trigger_functions.xml" relativeToChangelogFile="false"/>
+        <include file="db/changelog/changes/V3__Add_role_based_permissions.sql" relativeToChangelogFile="false"/>
 
-</databaseChangeLog>
+    </databaseChangeLog>
