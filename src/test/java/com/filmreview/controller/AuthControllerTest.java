@@ -120,7 +120,7 @@ class AuthControllerTest {
   @Test
   void testLogin_Success() throws Exception {
     // Create user using utility
-    User user = testDataUtil.createAndSaveUser("test@example.com", "testuser");
+    testDataUtil.createAndSaveUser("test@example.com", "testuser");
 
     LoginRequest request = new LoginRequest();
     request.setEmail("test@example.com");

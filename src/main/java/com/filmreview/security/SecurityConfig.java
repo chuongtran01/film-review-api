@@ -37,6 +37,7 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/health").permitAll()
             .requestMatchers("/api/v1/auth/**").permitAll()
             .requestMatchers("/api/v1/ratings/titles/**").permitAll() // Public access to title ratings
+            .requestMatchers("/api/v1/users/{username}").permitAll() // Public access to user profiles by username
             .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
             // Admin endpoints require ADMIN or MODERATOR role
             // Method-level security (@PreAuthorize) will further restrict specific

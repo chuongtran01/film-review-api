@@ -40,6 +40,11 @@ public interface RatingRepository extends JpaRepository<Rating, UUID> {
   long countByTitleId(UUID titleId);
 
   /**
+   * Count ratings for a specific user.
+   */
+  long countByUserId(UUID userId);
+
+  /**
    * Get average rating for a specific title.
    */
   @Query("SELECT AVG(r.score) FROM Rating r WHERE r.titleId = :titleId")
