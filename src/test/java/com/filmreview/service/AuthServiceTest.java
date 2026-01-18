@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -157,7 +158,9 @@ class AuthServiceTest {
     user = userRepository.save(user);
 
     // Generate refresh token
-    String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail());
+    List<String> roles = List.of("USER");
+    List<String> permissions = List.of();
+    String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail(), roles, permissions);
 
     AuthResponse response = authService.refreshToken(refreshToken);
 
@@ -196,7 +199,9 @@ class AuthServiceTest {
     user = userRepository.save(user);
 
     // Generate refresh token
-    String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail());
+    List<String> roles = List.of("USER");
+    List<String> permissions = List.of();
+    String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail(), roles, permissions);
 
     // Should not throw exception
     assertDoesNotThrow(() -> authService.logout(refreshToken));
