@@ -18,8 +18,9 @@ Backend API for the Film Review Platform built with Spring Boot 3.x, Java 17, Po
 
 - Java 17 or higher
 - Gradle 8.0+ (or use Gradle Wrapper)
-- PostgreSQL 15+
-- Redis (optional for local development)
+- Docker and Docker Compose (for local development services)
+- PostgreSQL 15+ (or use Docker Compose)
+- Redis (optional for local development, or use Docker Compose)
 
 ## Getting Started
 
@@ -29,32 +30,59 @@ Backend API for the Film Review Platform built with Spring Boot 3.x, Java 17, Po
 cd backend
 ```
 
-### 2. Configure Database
+### 2. Start Services with Docker Compose
 
-Create a PostgreSQL database:
+The easiest way to start PostgreSQL and Redis for local development is using Docker Compose:
 
+```bash
+# Start PostgreSQL and Redis
+docker-compose up -d
+
+# Check services are running
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+
+# Stop and remove volumes (clean slate)
+docker-compose down -v
+```
+
+This will start:
+- **PostgreSQL** on port `5432`
+  - Database: `filmreview_dev`
+  - Username: `devuser`
+  - Password: `devpassword`
+- **Redis** on port `6379`
+
+The services are configured to match the default values in `application-dev.yml`.
+
+### Alternative: Manual Database Setup
+
+If you prefer to set up PostgreSQL and Redis manually:
+
+**PostgreSQL:**
 ```sql
-CREATE DATABASE filmreview;
+CREATE DATABASE filmreview_dev;
 ```
 
 Or use environment variables:
-
 ```bash
-export DATABASE_URL=jdbc:postgresql://localhost:5432/filmreview
-export DATABASE_USERNAME=postgres
-export DATABASE_PASSWORD=postgres
+export DATABASE_URL=jdbc:postgresql://localhost:5432/filmreview_dev
+export DATABASE_USERNAME=devuser
+export DATABASE_PASSWORD=devpassword
 ```
 
-### 3. Configure Redis (Optional)
-
-For local development, Redis is optional. Set environment variables:
-
+**Redis:**
 ```bash
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 ```
 
-### 4. Run the Application
+### 3. Run the Application
 
 ```bash
 # Using Gradle Wrapper (recommended)
@@ -70,7 +98,7 @@ java -jar build/libs/backend-0.0.1-SNAPSHOT.jar
 
 The application will start on `http://localhost:8080`
 
-### 5. Access API Documentation
+### 4. Access API Documentation
 
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - API Docs: http://localhost:8080/api-docs

@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: film-review-postgres-prod
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-filmreview}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-postgres} -d ${DATABASE_NAME:-filmreview}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-review-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: film-review-redis-prod
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data_prod:/data
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+"--requirepass $REDIS_PASSWORD"}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-review-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+
+networks:
+  film-review-network:
+    driver: bridge

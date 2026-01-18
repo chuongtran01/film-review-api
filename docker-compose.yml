@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: film-review-postgres
+    environment:
+      POSTGRES_DB: filmreview_dev
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpassword
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U devuser -d filmreview_dev" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-review-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: film-review-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-review-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  film-review-network:
+    driver: bridge
