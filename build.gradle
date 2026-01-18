@@ -51,6 +51,11 @@ dependencies {
     // Spring AOP for aspect-oriented programming
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     
+    // Bucket4j for rate limiting
+    implementation 'com.bucket4j:bucket4j-core:8.10.0'
+    // Bucket4j Redis integration for distributed rate limiting
+    implementation 'com.bucket4j:bucket4j-redis:8.10.0'
+    
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

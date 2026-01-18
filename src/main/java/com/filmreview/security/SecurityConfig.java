@@ -17,9 +17,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final RateLimitFilter rateLimitFilter;
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, RateLimitFilter rateLimitFilter) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.rateLimitFilter = rateLimitFilter;
   }
 
   @Bean
@@ -45,7 +47,8 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MODERATOR")
             // All other endpoints require authentication
             .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
 
     return http.build();
   }
