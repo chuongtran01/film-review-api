@@ -11,8 +11,8 @@ import java.util.Map;
 @RequestMapping("/api/v1/health")
 public class HealthController {
 
-    @GetMapping
-    public ResponseEntity<Map<String, String>> health() {
-        return ResponseEntity.ok(Map.of("status", "UP"));
-    }
+  @GetMapping
+  public ResponseEntity<Map<String, String>> health() {
+    return ResponseEntity.ok(Map.of("status", "UP"));
+  }
 }
