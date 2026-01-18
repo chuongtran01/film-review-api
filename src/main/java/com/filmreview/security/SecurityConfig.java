@@ -36,9 +36,12 @@ public class SecurityConfig {
             // Public endpoints
             .requestMatchers("/api/v1/health").permitAll()
             .requestMatchers("/api/v1/auth/**").permitAll()
+            .requestMatchers("/api/v1/ratings/titles/**").permitAll() // Public access to title ratings
             .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-            // Admin endpoints require ADMIN role
-            .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+            // Admin endpoints require ADMIN or MODERATOR role
+            // Method-level security (@PreAuthorize) will further restrict specific
+            // endpoints
+            .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "MODERATOR")
             // All other endpoints require authentication
             .anyRequest().authenticated())
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
