@@ -14,13 +14,15 @@ import java.time.LocalDateTime;
  * via Spring Data JPA Auditing.
  * 
  * Example:
+ * 
  * <pre>
- * {@code
- * @Entity
- * @Table(name = "users")
- * public class User extends BaseEntity {
+ * {
+ *   &#64;code
+ *   &#64;Entity
+ *   @Table(name = "users")
+ *   public class User extends BaseEntity {
  *     // ... other fields
- * }
+ *   }
  * }
  * </pre>
  */
@@ -28,28 +30,28 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+  @CreatedDate
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private LocalDateTime createdAt;
 
-    @LastModifiedDate
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+  @LastModifiedDate
+  @Column(name = "updated_at", nullable = false)
+  private LocalDateTime updatedAt;
 
-    // Getters and setters
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+  // Getters and setters
+  public LocalDateTime getCreatedAt() {
+    return createdAt;
+  }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+  public void setCreatedAt(LocalDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
+  public LocalDateTime getUpdatedAt() {
+    return updatedAt;
+  }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+  public void setUpdatedAt(LocalDateTime updatedAt) {
+    this.updatedAt = updatedAt;
+  }
 }

@@ -10,7 +10,7 @@ spring:
       ddl-auto: update
   
   liquibase:
-    enabled: false
+    enabled: true
 
 logging:
   level:

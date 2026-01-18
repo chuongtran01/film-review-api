@@ -6,6 +6,7 @@
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
 
     <!-- Include individual changelog files here -->
-    <!-- Example: <include file="db/changelog/changes/V1__Initial_schema.xml"/> -->
+    <include file="db/changelog/changes/V1__Initial_schema.sql" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changes/V2__Trigger_functions.xml" relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <!-- Create function to update title rating aggregates -->
+    <changeSet id="1" author="chuong.tran">
+        <comment>Create function to update title rating aggregates</comment>
+        <sqlFile path="db/changelog/changes/functions/update_title_rating_aggregates.sql"
+                 splitStatements="false"
+                 stripComments="false"/>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS update_title_rating_aggregates();</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Create trigger for rating aggregates -->
+    <changeSet id="2" author="chuong.tran">
+        <comment>Create trigger for rating aggregates</comment>
+        <sql>
+            CREATE TRIGGER trigger_update_rating_aggregates
+            AFTER INSERT OR UPDATE OR DELETE ON ratings
+            FOR EACH ROW
+            EXECUTE FUNCTION update_title_rating_aggregates();
+        </sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trigger_update_rating_aggregates ON ratings;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Create function to update review helpful count -->
+    <changeSet id="3" author="chuong.tran">
+        <comment>Create function to update review helpful count</comment>
+        <sqlFile path="db/changelog/changes/functions/update_review_helpful_count.sql"
+                 splitStatements="false"
+                 stripComments="false"/>
+        <rollback>
+            <sql>DROP FUNCTION IF EXISTS update_review_helpful_count();</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Create trigger for review helpful count -->
+    <changeSet id="4" author="chuong.tran">
+        <comment>Create trigger for review helpful count</comment>
+        <sql>
+            CREATE TRIGGER trigger_update_helpful_count
+            AFTER INSERT OR DELETE ON review_helpful
+            FOR EACH ROW
+            EXECUTE FUNCTION update_review_helpful_count();
+        </sql>
+        <rollback>
+            <sql>DROP TRIGGER IF EXISTS trigger_update_helpful_count ON review_helpful;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
