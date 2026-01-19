@@ -60,6 +60,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     
+    // Apache Commons Lang3 for random data generation
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+    
     // DevTools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     

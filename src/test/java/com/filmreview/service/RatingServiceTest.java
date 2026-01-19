@@ -2,67 +2,50 @@ package com.filmreview.service;
 
 import com.filmreview.dto.RatingRequest;
 import com.filmreview.dto.RatingResponse;
-import com.filmreview.entity.User;
+import com.filmreview.entity.Rating;
 import com.filmreview.exception.BadRequestException;
 import com.filmreview.exception.NotFoundException;
+import com.filmreview.faker.RatingFaker;
 import com.filmreview.repository.RatingRepository;
-import com.filmreview.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@ActiveProfiles({ "dev", "test" })
-@Transactional
+@ExtendWith(MockitoExtension.class)
 class RatingServiceTest {
 
-  @Autowired
-  private RatingService ratingService;
-
-  @Autowired
+  @Mock
   private RatingRepository ratingRepository;
 
-  @Autowired
-  private UserRepository userRepository;
+  @InjectMocks
+  private RatingService ratingService;
 
-  @Autowired
-  private PasswordEncoder passwordEncoder;
-
-  @Autowired
-  private JdbcTemplate jdbcTemplate;
-
-  private User testUser;
+  private UUID userId;
   private UUID titleId;
+  private Rating testRating;
 
   @BeforeEach
   void setUp() {
-    ratingRepository.deleteAll();
-    userRepository.deleteAll();
-    jdbcTemplate.update("DELETE FROM titles");
-
-    testUser = new User();
-    testUser.setEmail("test@example.com");
-    testUser.setUsername("testuser");
-    testUser.setPasswordHash(passwordEncoder.encode("password123"));
-    testUser = userRepository.save(testUser);
-
-    // Create test title
+    userId = UUID.randomUUID();
     titleId = UUID.randomUUID();
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId, 1, "Test Movie", "test-movie");
+
+    testRating = RatingFaker.generate(userId, titleId, 8);
   }
 
   @Test
@@ -70,33 +53,54 @@ class RatingServiceTest {
     RatingRequest request = new RatingRequest();
     request.setScore(8);
 
-    RatingResponse response = ratingService.createOrUpdateRating(testUser.getId(), titleId, request);
+    // Mock: no existing rating
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.empty());
+    when(ratingRepository.save(any(Rating.class))).thenAnswer(invocation -> {
+      Rating rating = invocation.getArgument(0);
+      if (rating.getId() == null) {
+        rating.setId(UUID.randomUUID());
+      }
+      if (rating.getCreatedAt() == null) {
+        rating.setCreatedAt(LocalDateTime.now());
+      }
+      rating.setUpdatedAt(LocalDateTime.now());
+      return rating;
+    });
+
+    RatingResponse response = ratingService.createOrUpdateRating(userId, titleId, request);
 
     assertNotNull(response.getId());
     assertEquals(8, response.getScore());
-    assertEquals(testUser.getId(), response.getUserId());
+    assertEquals(userId, response.getUserId());
     assertEquals(titleId, response.getTitleId());
     assertNotNull(response.getCreatedAt());
+
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
+    verify(ratingRepository).save(any(Rating.class));
   }
 
   @Test
   void testCreateOrUpdateRating_UpdateExisting() {
-    // Create initial rating
-    RatingRequest request1 = new RatingRequest();
-    request1.setScore(8);
-    RatingResponse response1 = ratingService.createOrUpdateRating(testUser.getId(), titleId, request1);
-    UUID ratingId = response1.getId();
+    // Mock: existing rating found
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.of(testRating));
+    when(ratingRepository.save(any(Rating.class))).thenAnswer(invocation -> {
+      Rating rating = invocation.getArgument(0);
+      rating.setUpdatedAt(LocalDateTime.now());
+      return rating;
+    });
 
-    // Update rating
-    RatingRequest request2 = new RatingRequest();
-    request2.setScore(9);
-    RatingResponse response2 = ratingService.createOrUpdateRating(testUser.getId(), titleId, request2);
+    RatingRequest request = new RatingRequest();
+    request.setScore(9);
+
+    RatingResponse response = ratingService.createOrUpdateRating(userId, titleId, request);
 
     // Should be same rating ID
-    assertEquals(ratingId, response2.getId());
-    assertEquals(9, response2.getScore());
-    // Updated timestamp should be different or equal
-    assertNotNull(response2.getUpdatedAt());
+    assertEquals(testRating.getId(), response.getId());
+    assertEquals(9, response.getScore());
+    assertNotNull(response.getUpdatedAt());
+
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
+    verify(ratingRepository).save(any(Rating.class));
   }
 
   @Test
@@ -105,7 +109,9 @@ class RatingServiceTest {
     request.setScore(0);
 
     assertThrows(BadRequestException.class,
-        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+        () -> ratingService.createOrUpdateRating(userId, titleId, request));
+
+    verify(ratingRepository, never()).save(any(Rating.class));
   }
 
   @Test
@@ -114,7 +120,9 @@ class RatingServiceTest {
     request.setScore(11);
 
     assertThrows(BadRequestException.class,
-        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+        () -> ratingService.createOrUpdateRating(userId, titleId, request));
+
+    verify(ratingRepository, never()).save(any(Rating.class));
   }
 
   @Test
@@ -123,114 +131,127 @@ class RatingServiceTest {
     request.setScore(null);
 
     assertThrows(BadRequestException.class,
-        () -> ratingService.createOrUpdateRating(testUser.getId(), titleId, request));
+        () -> ratingService.createOrUpdateRating(userId, titleId, request));
+
+    verify(ratingRepository, never()).save(any(Rating.class));
   }
 
   @Test
   void testDeleteRating_Success() {
-    // Create rating first
-    RatingRequest request = new RatingRequest();
-    request.setScore(8);
-    ratingService.createOrUpdateRating(testUser.getId(), titleId, request);
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.of(testRating));
+    doNothing().when(ratingRepository).delete(any(Rating.class));
 
-    // Delete rating
-    assertDoesNotThrow(() -> ratingService.deleteRating(testUser.getId(), titleId));
+    assertDoesNotThrow(() -> ratingService.deleteRating(userId, titleId));
 
-    // Verify deleted
-    assertFalse(ratingRepository.existsByUserIdAndTitleId(testUser.getId(), titleId));
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
+    verify(ratingRepository).delete(testRating);
   }
 
   @Test
   void testDeleteRating_NotFound() {
-    assertThrows(NotFoundException.class, () -> ratingService.deleteRating(testUser.getId(), titleId));
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> ratingService.deleteRating(userId, titleId));
+
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
+    verify(ratingRepository, never()).delete(any(Rating.class));
   }
 
   @Test
   void testGetUserRatings() {
-    // Create multiple titles and ratings
     UUID titleId2 = UUID.randomUUID();
     UUID titleId3 = UUID.randomUUID();
 
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId2, 2, "Test Movie 2", "test-movie-2");
-    jdbcTemplate.update(
-        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-        titleId3, 3, "Test Movie 3", "test-movie-3");
-
-    ratingService.createOrUpdateRating(testUser.getId(), titleId, new RatingRequest(8));
-    ratingService.createOrUpdateRating(testUser.getId(), titleId2, new RatingRequest(9));
-    ratingService.createOrUpdateRating(testUser.getId(), titleId3, new RatingRequest(10));
+    Rating rating1 = RatingFaker.generate(userId, titleId, 8);
+    Rating rating2 = RatingFaker.generate(userId, titleId2, 9);
+    Rating rating3 = RatingFaker.generate(userId, titleId3, 10);
 
     Pageable pageable = PageRequest.of(0, 10);
-    Page<RatingResponse> ratings = ratingService.getUserRatings(testUser.getId(), pageable);
+    Page<Rating> ratingPage = new PageImpl<>(List.of(rating1, rating2, rating3), pageable, 3);
+
+    when(ratingRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)).thenReturn(ratingPage);
+
+    Page<RatingResponse> ratings = ratingService.getUserRatings(userId, pageable);
 
     assertEquals(3, ratings.getTotalElements());
     assertEquals(3, ratings.getContent().size());
+
+    verify(ratingRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
   }
 
   @Test
   void testGetUserRatings_Pagination() {
-    // Create 5 titles and ratings
-    for (int i = 0; i < 5; i++) {
-      UUID testTitleId = UUID.randomUUID();
-      jdbcTemplate.update(
-          "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
-          testTitleId, 10 + i, "Test Movie " + i, "test-movie-" + i);
-      ratingService.createOrUpdateRating(testUser.getId(), testTitleId, new RatingRequest(8));
-    }
+    Rating rating1 = RatingFaker.generate(userId, UUID.randomUUID(), 8);
+    Rating rating2 = RatingFaker.generate(userId, UUID.randomUUID(), 8);
 
     Pageable pageable = PageRequest.of(0, 2);
-    Page<RatingResponse> ratings = ratingService.getUserRatings(testUser.getId(), pageable);
+    Page<Rating> ratingPage = new PageImpl<>(List.of(rating1, rating2), pageable, 5);
+
+    when(ratingRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)).thenReturn(ratingPage);
+
+    Page<RatingResponse> ratings = ratingService.getUserRatings(userId, pageable);
 
     assertEquals(5, ratings.getTotalElements());
     assertEquals(2, ratings.getContent().size());
     assertTrue(ratings.hasNext());
+
+    verify(ratingRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
   }
 
   @Test
   void testGetRating_Success() {
-    RatingRequest request = new RatingRequest();
-    request.setScore(8);
-    RatingResponse created = ratingService.createOrUpdateRating(testUser.getId(), titleId, request);
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.of(testRating));
 
-    RatingResponse found = ratingService.getRating(testUser.getId(), titleId);
+    RatingResponse found = ratingService.getRating(userId, titleId);
 
     assertNotNull(found);
-    assertEquals(created.getId(), found.getId());
+    assertEquals(testRating.getId(), found.getId());
     assertEquals(8, found.getScore());
+
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
   }
 
   @Test
   void testGetRating_NotFound() {
-    assertThrows(NotFoundException.class, () -> ratingService.getRating(testUser.getId(), titleId));
+    when(ratingRepository.findByUserIdAndTitleId(userId, titleId)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> ratingService.getRating(userId, titleId));
+
+    verify(ratingRepository).findByUserIdAndTitleId(userId, titleId);
   }
 
   @Test
   void testGetTitleRatings() {
-    // Create ratings from multiple users
-    User user2 = new User();
-    user2.setEmail("user2@example.com");
-    user2.setUsername("user2");
-    user2.setPasswordHash(passwordEncoder.encode("password123"));
-    user2 = userRepository.save(user2);
+    UUID userId2 = UUID.randomUUID();
 
-    ratingService.createOrUpdateRating(testUser.getId(), titleId, new RatingRequest(8));
-    ratingService.createOrUpdateRating(user2.getId(), titleId, new RatingRequest(9));
+    Rating rating1 = RatingFaker.generate(userId, titleId, 8);
+    Rating rating2 = RatingFaker.generate(userId2, titleId, 9);
 
     Pageable pageable = PageRequest.of(0, 10);
+    Page<Rating> ratingPage = new PageImpl<>(List.of(rating1, rating2), pageable, 2);
+
+    when(ratingRepository.findByTitleIdOrderByCreatedAtDesc(titleId, pageable)).thenReturn(ratingPage);
+
     Page<RatingResponse> ratings = ratingService.getTitleRatings(titleId, pageable);
 
     assertEquals(2, ratings.getTotalElements());
     assertEquals(2, ratings.getContent().size());
+
+    verify(ratingRepository).findByTitleIdOrderByCreatedAtDesc(titleId, pageable);
   }
 
   @Test
   void testGetTitleRatings_Empty() {
     Pageable pageable = PageRequest.of(0, 10);
+    Page<Rating> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+
+    when(ratingRepository.findByTitleIdOrderByCreatedAtDesc(titleId, pageable)).thenReturn(emptyPage);
+
     Page<RatingResponse> ratings = ratingService.getTitleRatings(titleId, pageable);
 
     assertEquals(0, ratings.getTotalElements());
     assertTrue(ratings.getContent().isEmpty());
+
+    verify(ratingRepository).findByTitleIdOrderByCreatedAtDesc(titleId, pageable);
   }
 }

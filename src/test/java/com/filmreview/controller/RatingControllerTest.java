@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.filmreview.dto.RatingRequest;
 import com.filmreview.entity.Rating;
 import com.filmreview.entity.User;
+import com.filmreview.faker.RatingFaker;
 import com.filmreview.repository.RatingRepository;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.security.JwtTokenProvider;
@@ -160,10 +161,7 @@ class RatingControllerTest {
   @Test
   void testDeleteRating_Success() throws Exception {
     // Create rating first
-    Rating rating = new Rating();
-    rating.setUserId(testUser.getId());
-    rating.setTitleId(titleId);
-    rating.setScore(8);
+    Rating rating = RatingFaker.generate(testUser.getId(), titleId, 8);
     ratingRepository.save(rating);
 
     mockMvc.perform(delete("/api/v1/ratings/{titleId}", titleId)
@@ -184,10 +182,7 @@ class RatingControllerTest {
   @Test
   void testGetRating_Success() throws Exception {
     // Create rating first
-    Rating rating = new Rating();
-    rating.setUserId(testUser.getId());
-    rating.setTitleId(titleId);
-    rating.setScore(8);
+    Rating rating = RatingFaker.generate(testUser.getId(), titleId, 8);
     ratingRepository.save(rating);
 
     mockMvc.perform(get("/api/v1/ratings/{titleId}", titleId)
@@ -211,22 +206,13 @@ class RatingControllerTest {
     UUID titleId2 = testDataUtil.createTitle(UUID.randomUUID(), 2, "Test Movie 2", "test-movie-2");
     UUID titleId3 = testDataUtil.createTitle(UUID.randomUUID(), 3, "Test Movie 3", "test-movie-3");
 
-    Rating rating1 = new Rating();
-    rating1.setUserId(testUser.getId());
-    rating1.setTitleId(titleId);
-    rating1.setScore(8);
+    Rating rating1 = RatingFaker.generate(testUser.getId(), titleId, 8);
     ratingRepository.save(rating1);
 
-    Rating rating2 = new Rating();
-    rating2.setUserId(testUser.getId());
-    rating2.setTitleId(titleId2);
-    rating2.setScore(9);
+    Rating rating2 = RatingFaker.generate(testUser.getId(), titleId2, 9);
     ratingRepository.save(rating2);
 
-    Rating rating3 = new Rating();
-    rating3.setUserId(testUser.getId());
-    rating3.setTitleId(titleId3);
-    rating3.setScore(10);
+    Rating rating3 = RatingFaker.generate(testUser.getId(), titleId3, 10);
     ratingRepository.save(rating3);
 
     mockMvc.perform(get("/api/v1/ratings")
@@ -244,10 +230,7 @@ class RatingControllerTest {
     // Create 5 titles and ratings
     for (int i = 0; i < 5; i++) {
       UUID testTitleId = testDataUtil.createTitle(UUID.randomUUID(), 10 + i, "Test Movie " + i, "test-movie-" + i);
-      Rating rating = new Rating();
-      rating.setUserId(testUser.getId());
-      rating.setTitleId(testTitleId);
-      rating.setScore(8);
+      Rating rating = RatingFaker.generate(testUser.getId(), testTitleId, 8);
       ratingRepository.save(rating);
     }
 
@@ -267,16 +250,10 @@ class RatingControllerTest {
     User user2 = testDataUtil.createAndSaveUser("user2@example.com", "user2");
 
     // Title already created in setUp()
-    Rating rating1 = new Rating();
-    rating1.setUserId(testUser.getId());
-    rating1.setTitleId(titleId);
-    rating1.setScore(8);
+    Rating rating1 = RatingFaker.generate(testUser.getId(), titleId, 8);
     ratingRepository.save(rating1);
 
-    Rating rating2 = new Rating();
-    rating2.setUserId(user2.getId());
-    rating2.setTitleId(titleId);
-    rating2.setScore(9);
+    Rating rating2 = RatingFaker.generate(user2.getId(), titleId, 9);
     ratingRepository.save(rating2);
 
     // Public endpoint - no auth required

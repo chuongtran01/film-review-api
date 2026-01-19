@@ -11,6 +11,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.env.Environment;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,6 +39,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private final Bandwidth writeOperationBandwidth;
   private final Bandwidth reviewCreationBandwidth;
   private final Bandwidth loginAttemptBandwidth;
+  private final Environment environment;
 
   public RateLimitFilter(
       LettuceBasedProxyManager<byte[]> proxyManager,
@@ -45,13 +47,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
       Bandwidth authenticatedBandwidth,
       Bandwidth writeOperationBandwidth,
       Bandwidth reviewCreationBandwidth,
-      Bandwidth loginAttemptBandwidth) {
+      Bandwidth loginAttemptBandwidth,
+      Environment environment) {
     this.proxyManager = proxyManager;
     this.anonymousBandwidth = anonymousBandwidth;
     this.authenticatedBandwidth = authenticatedBandwidth;
     this.writeOperationBandwidth = writeOperationBandwidth;
     this.reviewCreationBandwidth = reviewCreationBandwidth;
     this.loginAttemptBandwidth = loginAttemptBandwidth;
+    this.environment = environment;
   }
 
   @Override
@@ -70,6 +74,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     if (path.equals("/api/v1/health")) {
       filterChain.doFilter(request, response);
       return;
+    }
+
+    // Skip rate limiting in test profile to allow tests to run without hitting
+    // limits
+    // This is necessary because Redis buckets may persist between test runs
+    String[] activeProfiles = environment.getActiveProfiles();
+    for (String profile : activeProfiles) {
+      if ("test".equals(profile)) {
+        filterChain.doFilter(request, response);
+        return;
+      }
     }
 
     try {

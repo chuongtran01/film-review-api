@@ -4,86 +4,127 @@ import com.filmreview.dto.UpdateUserRequest;
 import com.filmreview.dto.UserResponse;
 import com.filmreview.entity.User;
 import com.filmreview.exception.NotFoundException;
+import com.filmreview.faker.UserFaker;
+import com.filmreview.repository.RatingRepository;
+import com.filmreview.repository.ReviewRepository;
 import com.filmreview.repository.UserRepository;
-import com.filmreview.util.TestDataUtil;
+import com.filmreview.repository.WatchlistRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@ActiveProfiles({ "dev", "test" })
-@Transactional
+@ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-  @Autowired
-  private UserService userService;
-
-  @Autowired
+  @Mock
   private UserRepository userRepository;
 
-  @Autowired
-  private PasswordEncoder passwordEncoder;
+  @Mock
+  private RatingRepository ratingRepository;
 
-  @Autowired
-  private JdbcTemplate jdbcTemplate;
+  @Mock
+  private ReviewRepository reviewRepository;
 
-  private TestDataUtil testDataUtil;
+  @Mock
+  private WatchlistRepository watchlistRepository;
+
+  @InjectMocks
+  private UserService userService;
+
   private User testUser;
+  private UUID userId;
 
   @BeforeEach
   void setUp() {
-    testDataUtil = new TestDataUtil(jdbcTemplate, passwordEncoder, userRepository);
-    testDataUtil.cleanup();
-
-    testUser = testDataUtil.createAndSaveUser("test@example.com", "testuser");
+    userId = UUID.randomUUID();
+    testUser = UserFaker.generate(userId, "test@example.com", "testuser", "testuser");
   }
 
   @Test
   void testGetCurrentUser_Success() {
-    UserResponse response = userService.getCurrentUser(testUser.getId());
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
+
+    UserResponse response = userService.getCurrentUser(userId);
 
     assertNotNull(response);
-    assertEquals(testUser.getId(), response.getId());
+    assertEquals(userId, response.getId());
     assertEquals("testuser", response.getUsername());
     assertEquals("test@example.com", response.getEmail()); // Email included for own profile
     assertNotNull(response.getStats());
     assertEquals(0L, response.getStats().getRatingsCount());
     assertEquals(0L, response.getStats().getReviewsCount());
     assertEquals(0L, response.getStats().getWatchlistCount());
+
+    verify(userRepository).findById(userId);
+    verify(ratingRepository).countByUserId(userId);
+    verify(reviewRepository).countByUserId(userId);
+    verify(watchlistRepository).countByUserId(userId);
   }
 
   @Test
   void testGetCurrentUser_NotFound() {
-    assertThrows(NotFoundException.class, () -> userService.getCurrentUser(UUID.randomUUID()));
+    UUID nonExistentId = UUID.randomUUID();
+    when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> userService.getCurrentUser(nonExistentId));
+
+    verify(userRepository).findById(nonExistentId);
   }
 
   @Test
   void testGetUserByUsername_Success() {
+    when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+    when(ratingRepository.countByUserId(userId)).thenReturn(5L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(3L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(10L);
+
     UserResponse response = userService.getUserByUsername("testuser");
 
     assertNotNull(response);
-    assertEquals(testUser.getId(), response.getId());
+    assertEquals(userId, response.getId());
     assertEquals("testuser", response.getUsername());
     assertNull(response.getEmail()); // Email NOT included for public profile
     assertNotNull(response.getStats());
+    assertEquals(5L, response.getStats().getRatingsCount());
+    assertEquals(3L, response.getStats().getReviewsCount());
+    assertEquals(10L, response.getStats().getWatchlistCount());
+
+    verify(userRepository).findByUsername("testuser");
+    verify(ratingRepository).countByUserId(userId);
+    verify(reviewRepository).countByUserId(userId);
+    verify(watchlistRepository).countByUserId(userId);
   }
 
   @Test
   void testGetUserByUsername_NotFound() {
+    when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
+
     assertThrows(NotFoundException.class, () -> userService.getUserByUsername("nonexistent"));
+
+    verify(userRepository).findByUsername("nonexistent");
   }
 
   @Test
   void testGetUserByUsername_EmailNotIncluded() {
+    when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
+
     UserResponse response = userService.getUserByUsername("testuser");
 
     // Public profile should not include email
@@ -97,13 +138,26 @@ class UserServiceTest {
     request.setBio("Updated bio");
     request.setAvatarUrl("https://example.com/avatar.jpg");
 
-    UserResponse response = userService.updateUser(testUser.getId(), request);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      user.setUpdatedAt(LocalDateTime.now());
+      return user;
+    });
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
+
+    UserResponse response = userService.updateUser(userId, request);
 
     assertNotNull(response);
     assertEquals("Updated Name", response.getDisplayName());
     assertEquals("Updated bio", response.getBio());
     assertEquals("https://example.com/avatar.jpg", response.getAvatarUrl());
     assertEquals("testuser", response.getUsername()); // Username unchanged
+
+    verify(userRepository).findById(userId);
+    verify(userRepository).save(any(User.class));
   }
 
   @Test
@@ -111,17 +165,28 @@ class UserServiceTest {
     // Set initial values
     testUser.setDisplayName("Initial Name");
     testUser.setBio("Initial bio");
-    userRepository.save(testUser);
 
-    // Update only display name
     UpdateUserRequest request = new UpdateUserRequest();
     request.setDisplayName("Updated Name");
 
-    UserResponse response = userService.updateUser(testUser.getId(), request);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      user.setUpdatedAt(LocalDateTime.now());
+      return user;
+    });
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
+
+    UserResponse response = userService.updateUser(userId, request);
 
     assertEquals("Updated Name", response.getDisplayName());
     assertEquals("Initial bio", response.getBio()); // Bio unchanged
     assertNull(response.getAvatarUrl()); // Avatar unchanged
+
+    verify(userRepository).findById(userId);
+    verify(userRepository).save(any(User.class));
   }
 
   @Test
@@ -129,10 +194,22 @@ class UserServiceTest {
     UpdateUserRequest request = new UpdateUserRequest();
     request.setBio("New bio text");
 
-    UserResponse response = userService.updateUser(testUser.getId(), request);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      // The service modifies the user object, so we return it as-is
+      user.setUpdatedAt(LocalDateTime.now());
+      return user;
+    });
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
 
-    assertNull(response.getDisplayName()); // Display name unchanged
+    UserResponse response = userService.updateUser(userId, request);
+
+    // After update, bio should be set, displayName should remain unchanged
     assertEquals("New bio text", response.getBio());
+    assertEquals("testuser", response.getDisplayName()); // Display name unchanged (was "testuser" initially)
     assertNull(response.getAvatarUrl()); // Avatar unchanged
   }
 
@@ -141,11 +218,22 @@ class UserServiceTest {
     UpdateUserRequest request = new UpdateUserRequest();
     request.setAvatarUrl("https://example.com/new-avatar.jpg");
 
-    UserResponse response = userService.updateUser(testUser.getId(), request);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      // The service modifies the user object, so we return it as-is
+      user.setUpdatedAt(LocalDateTime.now());
+      return user;
+    });
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
 
-    assertNull(response.getDisplayName()); // Display name unchanged
-    assertNull(response.getBio()); // Bio unchanged
+    UserResponse response = userService.updateUser(userId, request);
+
     assertEquals("https://example.com/new-avatar.jpg", response.getAvatarUrl());
+    assertEquals("testuser", response.getDisplayName()); // Display name unchanged (was "testuser" initially)
+    assertNull(response.getBio()); // Bio unchanged
   }
 
   @Test
@@ -153,7 +241,13 @@ class UserServiceTest {
     UpdateUserRequest request = new UpdateUserRequest();
     // All fields null
 
-    UserResponse response = userService.updateUser(testUser.getId(), request);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(userRepository.save(any(User.class))).thenReturn(testUser);
+    when(ratingRepository.countByUserId(userId)).thenReturn(0L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(0L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(0L);
+
+    UserResponse response = userService.updateUser(userId, request);
 
     // Should not throw exception, user unchanged
     assertNotNull(response);
@@ -162,25 +256,30 @@ class UserServiceTest {
 
   @Test
   void testUpdateUser_NotFound() {
+    UUID nonExistentId = UUID.randomUUID();
     UpdateUserRequest request = new UpdateUserRequest();
     request.setDisplayName("Updated Name");
 
-    assertThrows(NotFoundException.class, () -> userService.updateUser(UUID.randomUUID(), request));
+    when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> userService.updateUser(nonExistentId, request));
+
+    verify(userRepository).findById(nonExistentId);
+    verify(userRepository, never()).save(any(User.class));
   }
 
   @Test
   void testGetCurrentUser_WithStats() {
-    // Note: We can't actually create ratings/reviews/watchlist items yet
-    // as those services aren't fully implemented. But the count methods
-    // should return 0, which is fine for now.
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    when(ratingRepository.countByUserId(userId)).thenReturn(5L);
+    when(reviewRepository.countByUserId(userId)).thenReturn(3L);
+    when(watchlistRepository.countByUserId(userId)).thenReturn(10L);
 
-    UserResponse response = userService.getCurrentUser(testUser.getId());
+    UserResponse response = userService.getCurrentUser(userId);
 
     assertNotNull(response.getStats());
-    // Stats should be 0 since we haven't implemented full review/watchlist creation
-    // yet
-    assertEquals(0L, response.getStats().getRatingsCount());
-    assertEquals(0L, response.getStats().getReviewsCount());
-    assertEquals(0L, response.getStats().getWatchlistCount());
+    assertEquals(5L, response.getStats().getRatingsCount());
+    assertEquals(3L, response.getStats().getReviewsCount());
+    assertEquals(10L, response.getStats().getWatchlistCount());
   }
 }
