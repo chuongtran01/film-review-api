@@ -3,16 +3,15 @@ package com.filmreview.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.filmreview.dto.UpdateUserRequest;
 import com.filmreview.entity.User;
+import com.filmreview.faker.UserFaker;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.security.JwtTokenProvider;
-import com.filmreview.util.TestDataUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -44,19 +43,15 @@ class UserControllerTest {
   @Autowired
   private JwtTokenProvider tokenProvider;
 
-  @Autowired
-  private JdbcTemplate jdbcTemplate;
-
-  private TestDataUtil testDataUtil;
   private User testUser;
   private String accessToken;
 
   @BeforeEach
   void setUp() {
-    testDataUtil = new TestDataUtil(jdbcTemplate, passwordEncoder, userRepository);
-    testDataUtil.cleanup();
-
-    testUser = testDataUtil.createAndSaveUser("test@example.com", "testuser");
+    // Create test user using faker
+    testUser = UserFaker.generate("test@example.com", "testuser");
+    testUser.setPasswordHash(passwordEncoder.encode("password123"));
+    testUser = userRepository.save(testUser);
 
     // Generate JWT token
     List<String> roles = List.of("USER");

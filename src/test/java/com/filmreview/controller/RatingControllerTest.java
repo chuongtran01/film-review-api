@@ -5,10 +5,10 @@ import com.filmreview.dto.RatingRequest;
 import com.filmreview.entity.Rating;
 import com.filmreview.entity.User;
 import com.filmreview.faker.RatingFaker;
+import com.filmreview.faker.UserFaker;
 import com.filmreview.repository.RatingRepository;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.security.JwtTokenProvider;
-import com.filmreview.util.TestDataUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,21 +55,16 @@ class RatingControllerTest {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
-  private TestDataUtil testDataUtil;
   private User testUser;
   private String accessToken;
   private UUID titleId;
 
   @BeforeEach
   void setUp() {
-    // Initialize test data utility
-    testDataUtil = new TestDataUtil(jdbcTemplate, passwordEncoder, userRepository);
-
-    // Clean up test data
-    testDataUtil.cleanup();
-
-    // Create test user using utility
-    testUser = testDataUtil.createAndSaveUser("test@example.com", "testuser");
+    // Create test user using faker
+    testUser = UserFaker.generate("test@example.com", "testuser");
+    testUser.setPasswordHash(passwordEncoder.encode("password123"));
+    testUser = userRepository.save(testUser);
 
     // Generate JWT token
     List<String> roles = List.of("USER");
@@ -81,8 +76,18 @@ class RatingControllerTest {
         roles,
         permissions);
 
-    // Create test title using utility
-    titleId = testDataUtil.createTitle(UUID.randomUUID(), 1, "Test Movie", "test-movie");
+    // Create test title using JDBC (no Title entity/repository)
+    titleId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
+        titleId, 1, "Test Movie", "test-movie");
+  }
+
+  private UUID createTitle(UUID titleId, Integer tmdbId, String title, String slug) {
+    jdbcTemplate.update(
+        "INSERT INTO titles (id, type, tmdb_id, title, slug) VALUES (?, 'movie', ?, ?, ?)",
+        titleId, tmdbId, title, slug);
+    return titleId;
   }
 
   @Test
@@ -203,8 +208,8 @@ class RatingControllerTest {
   @Test
   void testGetUserRatings() throws Exception {
     // Create multiple titles and ratings
-    UUID titleId2 = testDataUtil.createTitle(UUID.randomUUID(), 2, "Test Movie 2", "test-movie-2");
-    UUID titleId3 = testDataUtil.createTitle(UUID.randomUUID(), 3, "Test Movie 3", "test-movie-3");
+    UUID titleId2 = createTitle(UUID.randomUUID(), 2, "Test Movie 2", "test-movie-2");
+    UUID titleId3 = createTitle(UUID.randomUUID(), 3, "Test Movie 3", "test-movie-3");
 
     Rating rating1 = RatingFaker.generate(testUser.getId(), titleId, 8);
     ratingRepository.save(rating1);
@@ -229,7 +234,7 @@ class RatingControllerTest {
   void testGetUserRatings_Pagination() throws Exception {
     // Create 5 titles and ratings
     for (int i = 0; i < 5; i++) {
-      UUID testTitleId = testDataUtil.createTitle(UUID.randomUUID(), 10 + i, "Test Movie " + i, "test-movie-" + i);
+      UUID testTitleId = createTitle(UUID.randomUUID(), 10 + i, "Test Movie " + i, "test-movie-" + i);
       Rating rating = RatingFaker.generate(testUser.getId(), testTitleId, 8);
       ratingRepository.save(rating);
     }
@@ -247,7 +252,9 @@ class RatingControllerTest {
   @Test
   void testGetTitleRatings_Public() throws Exception {
     // Create ratings from multiple users
-    User user2 = testDataUtil.createAndSaveUser("user2@example.com", "user2");
+    User user2 = UserFaker.generate("user2@example.com", "user2");
+    user2.setPasswordHash(passwordEncoder.encode("password123"));
+    user2 = userRepository.save(user2);
 
     // Title already created in setUp()
     Rating rating1 = RatingFaker.generate(testUser.getId(), titleId, 8);

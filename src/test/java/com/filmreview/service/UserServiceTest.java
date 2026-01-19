@@ -165,6 +165,7 @@ class UserServiceTest {
     // Set initial values
     testUser.setDisplayName("Initial Name");
     testUser.setBio("Initial bio");
+    testUser.setAvatarUrl(null); // Ensure avatarUrl is null for this test
 
     UpdateUserRequest request = new UpdateUserRequest();
     request.setDisplayName("Updated Name");
@@ -191,6 +192,10 @@ class UserServiceTest {
 
   @Test
   void testUpdateUser_OnlyBio() {
+    // Ensure avatarUrl is null for this test
+    testUser.setAvatarUrl(null);
+    testUser.setBio(null);
+
     UpdateUserRequest request = new UpdateUserRequest();
     request.setBio("New bio text");
 
@@ -215,6 +220,10 @@ class UserServiceTest {
 
   @Test
   void testUpdateUser_OnlyAvatar() {
+    // Ensure bio is null for this test
+    testUser.setAvatarUrl(null);
+    testUser.setBio(null);
+
     UpdateUserRequest request = new UpdateUserRequest();
     request.setAvatarUrl("https://example.com/new-avatar.jpg");
 
