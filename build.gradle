@@ -63,6 +63,9 @@ dependencies {
     // Apache Commons Lang3 for random data generation
     implementation 'org.apache.commons:commons-lang3:3.14.0'
     
+    // TMDB API Wrapper (official Java library)
+    implementation 'uk.co.conoregan:themoviedbapi:2.4.0'
+    
     // DevTools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     

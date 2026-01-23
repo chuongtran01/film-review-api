@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * Admin content management controller.
- * Handles movie and TV show management.
+ * Handles movie management.
  * All endpoints require appropriate roles and permissions.
  */
 @RestController
@@ -22,15 +22,6 @@ public class AdminContentController {
     return ResponseEntity.ok(Map.of(
         "message", "Movie added successfully",
         "data", movieData));
-  }
-
-  @PostMapping("/tv-show")
-  @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR') and hasAuthority('titles.create')")
-  public ResponseEntity<Map<String, Object>> addTvShow(@RequestBody Map<String, Object> tvShowData) {
-    // TODO: Implement when Title entity is created
-    return ResponseEntity.ok(Map.of(
-        "message", "TV show added successfully",
-        "data", tvShowData));
   }
 
   @PutMapping("/{titleId}")
