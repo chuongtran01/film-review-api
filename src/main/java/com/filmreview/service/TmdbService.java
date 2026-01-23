@@ -1,6 +1,7 @@
 package com.filmreview.service;
 
 import com.filmreview.config.TmdbConfig;
+import com.filmreview.dto.tmdb.TmdbGenreInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
 import com.filmreview.mapper.TmdbMovieMapper;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import info.movito.themoviedbapi.TmdbApi;
+import info.movito.themoviedbapi.TmdbGenre;
 import info.movito.themoviedbapi.TmdbMovieLists;
 import info.movito.themoviedbapi.TmdbMovies;
 import info.movito.themoviedbapi.model.core.MovieResultsPage;
@@ -38,6 +40,7 @@ public class TmdbService {
   private final TmdbConfig tmdbConfig;
   private final TmdbMovies tmdbMovies;
   private final TmdbMovieLists tmdbMoviesLists;
+  private final TmdbGenre tmdbGenre;
   private final TmdbMovieMapper tmdbMovieMapper;
 
   public TmdbService(TmdbConfig tmdbConfig, TmdbMovieMapper tmdbMovieMapper) {
@@ -46,6 +49,7 @@ public class TmdbService {
     this.tmdbApi = new TmdbApi(tmdbConfig.getApiKey());
     this.tmdbMovies = tmdbApi.getMovies();
     this.tmdbMoviesLists = tmdbApi.getMovieLists();
+    this.tmdbGenre = tmdbApi.getGenre();
   }
 
   /**
@@ -87,6 +91,36 @@ public class TmdbService {
     } catch (Exception e) {
       logger.error("Error fetching popular movies from TMDB", e);
       throw new RuntimeException("Failed to fetch popular movies from TMDB", e);
+    }
+  }
+
+  /**
+   * Get official movie genres list from TMDB.
+   */
+  public List<TmdbGenreInfo> getMovieGenres() {
+    try {
+      List<info.movito.themoviedbapi.model.core.Genre> genres = tmdbGenre.getMovieList(DEFAULT_LANGUAGE);
+      return genres.stream()
+          .map(genre -> new TmdbGenreInfo(genre.getId(), genre.getName()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error fetching movie genres from TMDB", e);
+      throw new RuntimeException("Failed to fetch movie genres from TMDB", e);
+    }
+  }
+
+  /**
+   * Get official TV series genres list from TMDB.
+   */
+  public List<TmdbGenreInfo> getTvSeriesGenres() {
+    try {
+      List<info.movito.themoviedbapi.model.core.Genre> genres = tmdbGenre.getTvList(DEFAULT_LANGUAGE);
+      return genres.stream()
+          .map(genre -> new TmdbGenreInfo(genre.getId(), genre.getName()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error fetching TV series genres from TMDB", e);
+      throw new RuntimeException("Failed to fetch TV series genres from TMDB", e);
     }
   }
 

@@ -1,5 +1,6 @@
 package com.filmreview.controller.admin;
 
+import com.filmreview.service.GenreService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/admin/titles")
 public class AdminContentController {
+
+  private final GenreService genreService;
+
+  public AdminContentController(GenreService genreService) {
+    this.genreService = genreService;
+  }
 
   @PostMapping("/movie")
   @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR') and hasAuthority('titles.create')")
@@ -43,5 +50,21 @@ public class AdminContentController {
     return ResponseEntity.ok(Map.of(
         "message", "Title deleted successfully",
         "titleId", titleId));
+  }
+
+  /**
+   * Sync movie and TV series genres from TMDB.
+   * Fetches official genre list and updates the database.
+   */
+  @PostMapping("/genres/sync")
+  @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR') and hasAuthority('titles.create')")
+  public ResponseEntity<Map<String, Object>> syncGenres() {
+    int movieGenresSynced = genreService.syncMovieGenres();
+    int tvSeriesGenresSynced = genreService.syncTvSeriesGenres();
+
+    return ResponseEntity.ok(Map.of(
+        "message", "Movie and TV series genres synced successfully",
+        "movieGenresSynced", movieGenresSynced,
+        "tvSeriesGenresSynced", tvSeriesGenresSynced));
   }
 }
