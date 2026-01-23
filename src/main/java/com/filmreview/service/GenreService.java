@@ -3,14 +3,13 @@ package com.filmreview.service;
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
 import com.filmreview.entity.Genre;
 import com.filmreview.repository.GenreRepository;
+import com.filmreview.util.SlugUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * Service for managing genres.
@@ -20,8 +19,6 @@ import java.util.regex.Pattern;
 public class GenreService {
 
   private static final Logger logger = LoggerFactory.getLogger(GenreService.class);
-  private static final Pattern NON_LATIN = Pattern.compile("[^\\w-]");
-  private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
   private final GenreRepository genreRepository;
   private final TmdbService tmdbService;
@@ -63,7 +60,7 @@ public class GenreService {
         updated = true;
       }
 
-      String slug = generateSlug(tmdbGenre.getName());
+      String slug = SlugUtils.generateSlug(tmdbGenre.getName(), 100);
       if (!slug.equals(genre.getSlug())) {
         genre.setSlug(slug);
         updated = true;
@@ -112,7 +109,7 @@ public class GenreService {
         updated = true;
       }
 
-      String slug = generateSlug(tmdbGenre.getName());
+      String slug = SlugUtils.generateSlug(tmdbGenre.getName(), 100);
       if (!slug.equals(genre.getSlug())) {
         genre.setSlug(slug);
         updated = true;
@@ -127,21 +124,5 @@ public class GenreService {
 
     logger.info("Completed TV series genres sync: {} genres processed", synced);
     return synced;
-  }
-
-  /**
-   * Generate URL-friendly slug from genre name.
-   */
-  private String generateSlug(String text) {
-    if (text == null || text.isEmpty()) {
-      return "untitled";
-    }
-
-    String normalized = Normalizer.normalize(text, Normalizer.Form.NFD);
-    String slug = NON_LATIN.matcher(normalized).replaceAll("");
-    slug = WHITESPACE.matcher(slug).replaceAll("-");
-    slug = slug.toLowerCase();
-
-    return slug.length() > 100 ? slug.substring(0, 100) : slug;
   }
 }

@@ -6,18 +6,18 @@ import com.filmreview.entity.Title;
 import com.filmreview.entity.TitleGenre;
 import com.filmreview.entity.TitleGenreId;
 import com.filmreview.exception.NotFoundException;
+import com.filmreview.mapper.TitleMapper;
 import com.filmreview.repository.GenreRepository;
 import com.filmreview.repository.TitleGenreRepository;
 import com.filmreview.repository.TitleRepository;
+import com.filmreview.util.SlugUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.util.List;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 /**
  * Service for managing movie titles.
@@ -27,23 +27,24 @@ import java.util.regex.Pattern;
 public class TitleService {
 
   private static final Logger logger = LoggerFactory.getLogger(TitleService.class);
-  private static final Pattern NON_LATIN = Pattern.compile("[^\\w-]");
-  private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
   private final TitleRepository titleRepository;
   private final GenreRepository genreRepository;
   private final TitleGenreRepository titleGenreRepository;
   private final TmdbService tmdbService;
+  private final TitleMapper titleMapper;
 
   public TitleService(
       TitleRepository titleRepository,
       GenreRepository genreRepository,
       TitleGenreRepository titleGenreRepository,
-      TmdbService tmdbService) {
+      TmdbService tmdbService,
+      TitleMapper titleMapper) {
     this.titleRepository = titleRepository;
     this.genreRepository = genreRepository;
     this.titleGenreRepository = titleGenreRepository;
     this.tmdbService = tmdbService;
+    this.titleMapper = titleMapper;
   }
 
   /**
@@ -89,7 +90,7 @@ public class TitleService {
       throw new NotFoundException("Movie not found in TMDB: " + tmdbId);
     }
 
-    Title title = mapMovieToTitle(movieResponse);
+    Title title = titleMapper.toTitle(movieResponse);
 
     // Save title
     title = titleRepository.save(title);
@@ -99,27 +100,6 @@ public class TitleService {
 
     logger.info("Successfully fetched and saved movie: id={}, tmdbId={}",
         title.getId(), tmdbId);
-    return title;
-  }
-
-  /**
-   * Map TMDB movie response to Title entity.
-   */
-  private Title mapMovieToTitle(TmdbMovieResponse response) {
-    Title title = new Title();
-    title.setType(Title.TitleType.movie);
-    title.setTmdbId(response.getId());
-    title.setImdbId(response.getImdbId());
-    title.setTitle(response.getTitle());
-    title.setOriginalTitle(response.getOriginalTitle());
-    title.setSlug(generateSlug(response.getTitle()));
-    title.setSynopsis(response.getOverview());
-    title.setReleaseDate(response.getReleaseDate());
-    title.setRuntime(response.getRuntime());
-    title.setPosterUrl(tmdbService.getImageUrl(response.getPosterPath(), "w500"));
-    title.setBackdropUrl(tmdbService.getImageUrl(response.getBackdropPath(), "w1920"));
-    title.setStatus(response.getStatus());
-    title.setUserRatingCount(0);
     return title;
   }
 
@@ -141,7 +121,7 @@ public class TitleService {
             Genre newGenre = new Genre();
             newGenre.setId(tmdbGenreId);
             newGenre.setName(genreName);
-            newGenre.setSlug(generateSlug(genreName));
+            newGenre.setSlug(SlugUtils.generateSlug(genreName, 100));
             return genreRepository.save(newGenre);
           });
 
@@ -154,23 +134,5 @@ public class TitleService {
         titleGenreRepository.save(titleGenre);
       }
     }
-  }
-
-  /**
-   * Generate URL-friendly slug from title.
-   */
-  private String generateSlug(String text) {
-    if (text == null || text.isEmpty()) {
-      return "untitled";
-    }
-
-    String normalized = Normalizer.normalize(text, Normalizer.Form.NFD);
-    String slug = NON_LATIN.matcher(normalized).replaceAll("");
-    slug = WHITESPACE.matcher(slug).replaceAll("-");
-    slug = slug.toLowerCase();
-
-    // Ensure uniqueness by appending random suffix if needed
-    // For now, just return the slug (uniqueness will be handled at DB level)
-    return slug.length() > 500 ? slug.substring(0, 500) : slug;
   }
 }
