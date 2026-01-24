@@ -1,5 +1,6 @@
 package com.filmreview.security;
 
+import com.filmreview.entity.RoleType;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,7 +29,7 @@ public class UserPrincipal implements UserDetails {
     this.id = id;
     this.username = username;
     this.email = email;
-    this.roles = roles != null ? roles : List.of("USER");
+    this.roles = roles != null ? roles : List.of(RoleType.USER.getName());
     this.permissions = permissions != null ? permissions : List.of();
 
     // Build authorities collection:

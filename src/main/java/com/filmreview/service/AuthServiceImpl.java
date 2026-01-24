@@ -6,6 +6,10 @@ import com.filmreview.dto.RegisterRequest;
 import com.filmreview.entity.User;
 import com.filmreview.exception.BadRequestException;
 import com.filmreview.exception.UnauthorizedException;
+import com.filmreview.entity.Role;
+import com.filmreview.entity.RoleType;
+import com.filmreview.entity.UserRole;
+import com.filmreview.repository.RoleRepository;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.repository.UserRoleRepository;
 import com.filmreview.security.JwtTokenProvider;
@@ -22,6 +26,7 @@ public class AuthServiceImpl implements AuthService {
 
   private final UserRepository userRepository;
   private final UserRoleRepository userRoleRepository;
+  private final RoleRepository roleRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider tokenProvider;
   private final PermissionService permissionService;
@@ -29,11 +34,13 @@ public class AuthServiceImpl implements AuthService {
   public AuthServiceImpl(
       UserRepository userRepository,
       UserRoleRepository userRoleRepository,
+      RoleRepository roleRepository,
       PasswordEncoder passwordEncoder,
       JwtTokenProvider tokenProvider,
       PermissionService permissionService) {
     this.userRepository = userRepository;
     this.userRoleRepository = userRoleRepository;
+    this.roleRepository = roleRepository;
     this.passwordEncoder = passwordEncoder;
     this.tokenProvider = tokenProvider;
     this.permissionService = permissionService;
@@ -43,7 +50,7 @@ public class AuthServiceImpl implements AuthService {
     List<String> roles = userRoleRepository.findRoleNamesByUserId(userId);
     // If user has no roles, assign default USER role
     if (roles.isEmpty()) {
-      return List.of("USER");
+      return List.of(RoleType.USER.getName());
     }
     return roles;
   }
@@ -82,7 +89,15 @@ public class AuthServiceImpl implements AuthService {
     user = userRepository.save(user);
 
     // Assign default USER role to new user
-    // This will be handled by the migration, but we ensure it here too
+    Role userRole = roleRepository.findByName(RoleType.USER.getName())
+        .orElseThrow(() -> new RuntimeException("USER role not found in database"));
+
+    UserRole userRoleEntity = new UserRole();
+    userRoleEntity.setUserId(user.getId());
+    userRoleEntity.setRoleId(userRole.getId());
+    userRoleRepository.save(userRoleEntity);
+
+    // Get user roles and permissions
     List<String> roles = getUserRoles(user.getId());
     List<String> permissions = getUserPermissions(user.getId());
 

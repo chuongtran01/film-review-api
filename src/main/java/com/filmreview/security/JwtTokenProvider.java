@@ -1,5 +1,6 @@
 package com.filmreview.security;
 
+import com.filmreview.entity.RoleType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -48,7 +49,7 @@ public class JwtTokenProvider {
         .subject(userId.toString())
         .claim("username", username)
         .claim("email", email)
-        .claim("roles", roles != null ? roles : List.of("USER"))
+        .claim("roles", roles != null ? roles : List.of(RoleType.USER.getName()))
         .claim("permissions", permissions != null ? permissions : List.of())
         .issuedAt(now)
         .expiration(expiryDate)
@@ -76,7 +77,7 @@ public class JwtTokenProvider {
       if (roles instanceof List) {
         return (List<String>) roles;
       }
-      return List.of("USER");
+      return List.of(RoleType.USER.getName());
     });
   }
 

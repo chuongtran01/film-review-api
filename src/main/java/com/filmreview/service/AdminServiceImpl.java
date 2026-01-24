@@ -1,5 +1,6 @@
 package com.filmreview.service;
 
+import com.filmreview.entity.RoleType;
 import com.filmreview.entity.User;
 import com.filmreview.entity.UserRole;
 import com.filmreview.exception.BadRequestException;
@@ -39,7 +40,7 @@ public class AdminServiceImpl implements AdminService {
         .orElseThrow(() -> new BadRequestException("User not found"));
 
     // Check if user already has ADMIN role
-    var adminRole = roleRepository.findByName("ADMIN")
+    var adminRole = roleRepository.findByName(RoleType.ADMIN.getName())
         .orElseThrow(() -> new BadRequestException("ADMIN role not found in database"));
 
     if (userRoleRepository.existsByUserIdAndRoleId(userId, adminRole.getId())) {

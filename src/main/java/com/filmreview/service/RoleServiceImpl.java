@@ -1,6 +1,7 @@
 package com.filmreview.service;
 
 import com.filmreview.entity.Role;
+import com.filmreview.entity.RoleType;
 import com.filmreview.entity.UserRole;
 import com.filmreview.exception.BadRequestException;
 import com.filmreview.repository.RoleRepository;
@@ -61,7 +62,8 @@ public class RoleServiceImpl implements RoleService {
         .orElseThrow(() -> new BadRequestException("Role not found: " + roleName));
 
     // Prevent removing ADMIN role from yourself
-    if (currentUser != null && currentUser.getId().equals(userId) && "ADMIN".equalsIgnoreCase(roleName)) {
+    if (currentUser != null && currentUser.getId().equals(userId)
+        && RoleType.ADMIN.getName().equalsIgnoreCase(roleName)) {
       throw new BadRequestException("Cannot remove ADMIN role from yourself");
     }
 
