@@ -82,8 +82,48 @@ export REDIS_HOST=localhost
 export REDIS_PORT=6379
 ```
 
-### 3. Run the Application
+### 3. Environment Variables Setup
 
+Create a `.env` file in the `backend` directory with your environment variables:
+
+```bash
+# .env file example
+DATABASE_URL=jdbc:postgresql://localhost:5432/filmreview_dev
+DATABASE_USERNAME=devuser
+DATABASE_PASSWORD=devpassword
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=your-secret-key-here
+TMDB_API_KEY=your-tmdb-api-key-here
+```
+
+### 4. Run the Application
+
+**Option 1: Using .env file with export (Linux/Mac)**
+```bash
+# Load environment variables from .env file
+export $(cat .env | xargs)
+
+# Then run the application
+./gradlew bootRun
+```
+
+**Option 2: Using .env file inline (Linux/Mac)**
+```bash
+# Load and run in one command
+export $(cat .env | xargs) && ./gradlew bootRun
+```
+
+**Option 3: Using env-cmd (cross-platform, requires npm)**
+```bash
+# Install env-cmd globally (one time)
+npm install -g env-cmd
+
+# Run with .env file
+env-cmd ./gradlew bootRun
+```
+
+**Option 4: Direct execution (without .env file)**
 ```bash
 # Using Gradle Wrapper (recommended)
 ./gradlew bootRun
@@ -96,9 +136,11 @@ gradle bootRun
 java -jar build/libs/backend-0.0.1-SNAPSHOT.jar
 ```
 
+**Note**: If you don't use a `.env` file, make sure to export environment variables in your shell or set them in your IDE run configuration.
+
 The application will start on `http://localhost:8080`
 
-### 4. Access API Documentation
+### 5. Access API Documentation
 
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - API Docs: http://localhost:8080/api-docs

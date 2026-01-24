@@ -28,7 +28,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class RatingServiceTest {
+class RatingServiceImplTest {
 
   @Mock
   private RatingRepository ratingRepository;
