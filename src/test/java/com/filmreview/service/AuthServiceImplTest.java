@@ -7,6 +7,10 @@ import com.filmreview.entity.User;
 import com.filmreview.exception.BadRequestException;
 import com.filmreview.exception.UnauthorizedException;
 import com.filmreview.faker.UserFaker;
+import com.filmreview.entity.Role;
+import com.filmreview.entity.RoleType;
+import com.filmreview.entity.UserRole;
+import com.filmreview.repository.RoleRepository;
 import com.filmreview.repository.UserRepository;
 import com.filmreview.repository.UserRoleRepository;
 import com.filmreview.security.JwtTokenProvider;
@@ -36,6 +40,9 @@ class AuthServiceImplTest {
 
   @Mock
   private UserRoleRepository userRoleRepository;
+
+  @Mock
+  private RoleRepository roleRepository;
 
   @Mock
   private PasswordEncoder passwordEncoder;
@@ -74,6 +81,14 @@ class AuthServiceImplTest {
       user.setCreatedAt(LocalDateTime.now());
       return user;
     });
+    // Mock role repository for USER role assignment
+    Role userRole = new Role();
+    userRole.setId(1);
+    userRole.setName(RoleType.USER.getName());
+    when(roleRepository.findByName(RoleType.USER.getName())).thenReturn(Optional.of(userRole));
+    when(userRoleRepository.save(any(UserRole.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("USER"));
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of());
     when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
         .thenReturn("access-token");
     when(tokenProvider.generateRefreshToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
@@ -131,6 +146,12 @@ class AuthServiceImplTest {
       user.setCreatedAt(LocalDateTime.now());
       return user;
     });
+    // Mock role repository for USER role assignment
+    Role userRole = new Role();
+    userRole.setId(1);
+    userRole.setName(RoleType.USER.getName());
+    when(roleRepository.findByName(RoleType.USER.getName())).thenReturn(Optional.of(userRole));
+    when(userRoleRepository.save(any(UserRole.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("USER"));
     when(permissionService.getUserPermissions(userId)).thenReturn(Set.of());
     when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))

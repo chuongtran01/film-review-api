@@ -32,8 +32,13 @@ public class TitleMapper {
     title.setSynopsis(response.getOverview());
     title.setReleaseDate(response.getReleaseDate());
     title.setRuntime(response.getRuntime());
-    title.setPosterUrl(tmdbService.getImageUrl(response.getPosterPath(), "w500"));
-    title.setBackdropUrl(tmdbService.getImageUrl(response.getBackdropPath(), "w1920"));
+    // Only set poster/backdrop URLs if paths are available
+    if (response.getPosterPath() != null && !response.getPosterPath().isEmpty()) {
+      title.setPosterUrl(tmdbService.getImageUrl(response.getPosterPath(), "w500"));
+    }
+    if (response.getBackdropPath() != null && !response.getBackdropPath().isEmpty()) {
+      title.setBackdropUrl(tmdbService.getImageUrl(response.getBackdropPath(), "w1920"));
+    }
     title.setStatus(response.getStatus());
     title.setUserRatingCount(0);
     return title;

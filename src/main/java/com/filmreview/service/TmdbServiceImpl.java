@@ -122,6 +122,8 @@ public class TmdbServiceImpl implements TmdbService {
     if (path == null || path.isEmpty()) {
       return null;
     }
-    return tmdbConfig.getImageBaseUrl() + "/" + size + path;
+    // Ensure path starts with / if it doesn't already
+    String normalizedPath = path.startsWith("/") ? path : "/" + path;
+    return tmdbConfig.getImageBaseUrl() + "/" + size + normalizedPath;
   }
 }

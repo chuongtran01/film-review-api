@@ -38,6 +38,7 @@ public class SecurityConfig {
             // Public endpoints
             .requestMatchers("/api/v1/health").permitAll()
             .requestMatchers("/api/v1/auth/**").permitAll()
+            .requestMatchers("/api/v1/titles/**").permitAll() // Public access to titles
             .requestMatchers("/api/v1/ratings/titles/**").permitAll() // Public access to title ratings
             .requestMatchers("/api/v1/users/{username}").permitAll() // Public access to user profiles by username
             .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

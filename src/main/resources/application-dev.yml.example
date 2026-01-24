@@ -1,0 +1,28 @@
+# Copy this file to application-dev.yml and fill in your values
+# application-dev.yml is gitignored and used for local development
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/filmreview_dev
+    username: devuser
+    password: devpassword
+  
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  
+  liquibase:
+    enabled: true
+
+tmdb:
+  api-key: your-tmdb-api-key-here
+  image-base-url: https://image.tmdb.org/t/p
+
+jwt:
+  secret: your-jwt-secret-key-here-min-256-bits
+
+logging:
+  level:
+    com.filmreview: DEBUG
+    org.hibernate.SQL: DEBUG

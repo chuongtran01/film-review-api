@@ -1,6 +1,8 @@
 package com.filmreview.service;
 
 import com.filmreview.entity.Title;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
@@ -30,4 +32,10 @@ public interface TitleService {
    * Fetch movie from TMDB and save to database.
    */
   Title fetchAndSaveTitle(Integer tmdbId);
+
+  /**
+   * Get popular movies from TMDB. Fetches and saves movies that don't exist in
+   * DB.
+   */
+  Page<Title> getPopularMovies(String language, int page, String region, Pageable pageable);
 }

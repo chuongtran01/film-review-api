@@ -98,10 +98,19 @@ public class TmdbMovieMapper {
 
     TmdbPageResponse.TmdbMovieItem item = new TmdbPageResponse.TmdbMovieItem();
     item.setId(movie.getId());
-    item.setTitle(movie.getTitle());
+    item.setAdult(movie.getAdult());
+    item.setBackdropPath(movie.getBackdropPath());
+    item.setGenreIds(movie.getGenreIds());
+    item.setOriginalLanguage(movie.getOriginalLanguage());
+    item.setOriginalTitle(movie.getOriginalTitle());
+    item.setOverview(movie.getOverview());
+    item.setPopularity(movie.getPopularity());
     item.setPosterPath(movie.getPosterPath());
     item.setReleaseDate(movie.getReleaseDate());
-    item.setPopularity(movie.getPopularity());
+    item.setTitle(movie.getTitle());
+    item.setVideo(movie.getVideo());
+    item.setVoteAverage(movie.getVoteAverage());
+    item.setVoteCount(movie.getVoteCount());
     return item;
   }
 }
