@@ -107,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
     String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail(), roles,
         permissions);
 
-    return buildAuthResponse(user, accessToken, refreshToken);
+    return buildAuthResponse(user, accessToken, refreshToken, roles, permissions);
   }
 
   @Override
@@ -135,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
     String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getUsername(), user.getEmail(), roles,
         permissions);
 
-    return buildAuthResponse(user, accessToken, refreshToken);
+    return buildAuthResponse(user, accessToken, refreshToken, roles, permissions);
   }
 
   @Override
@@ -157,7 +157,7 @@ public class AuthServiceImpl implements AuthService {
         permissions);
 
     // Return new access token (refresh token remains the same)
-    return buildAuthResponse(user, newAccessToken, refreshToken);
+    return buildAuthResponse(user, newAccessToken, refreshToken, roles, permissions);
   }
 
   @Override
@@ -170,7 +170,9 @@ public class AuthServiceImpl implements AuthService {
     }
   }
 
-  private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
+  private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken, List<String> roles,
+      List<String> permissions) {
+
     AuthResponse.UserDto userDto = new AuthResponse.UserDto();
     userDto.setId(user.getId());
     userDto.setUsername(user.getUsername());
@@ -179,6 +181,8 @@ public class AuthServiceImpl implements AuthService {
     userDto.setAvatarUrl(user.getAvatarUrl());
     userDto.setVerified(user.getVerified());
     userDto.setCreatedAt(user.getCreatedAt());
+    userDto.setRoles(roles);
+    userDto.setPermissions(permissions);
 
     AuthResponse response = new AuthResponse();
     response.setUser(userDto);

@@ -102,6 +102,13 @@ class AuthServiceImplTest {
     assertEquals("test", response.getUser().getUsername());
     assertNotNull(response.getAccessToken());
     assertNotNull(response.getRefreshToken());
+    // Verify roles are included
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(1, response.getUser().getRoles().size());
+    assertEquals("USER", response.getUser().getRoles().get(0));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertTrue(response.getUser().getPermissions().isEmpty()); // New user has no permissions initially
 
     // Verify interactions
     verify(userRepository).existsByEmail("test@example.com");
@@ -190,6 +197,13 @@ class AuthServiceImplTest {
     assertEquals("testuser", response.getUser().getUsername());
     assertNotNull(response.getAccessToken());
     assertNotNull(response.getRefreshToken());
+    // Verify roles are included
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(1, response.getUser().getRoles().size());
+    assertEquals("USER", response.getUser().getRoles().get(0));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertTrue(response.getUser().getPermissions().isEmpty()); // User has no permissions
 
     verify(userRepository).findByEmail("test@example.com");
     verify(passwordEncoder).matches("password123", testUser.getPasswordHash());
@@ -244,6 +258,13 @@ class AuthServiceImplTest {
     assertNotNull(response.getAccessToken());
     assertEquals(refreshToken, response.getRefreshToken()); // Refresh token should remain the same
     assertEquals("test@example.com", response.getUser().getEmail());
+    // Verify roles are included
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(1, response.getUser().getRoles().size());
+    assertEquals("USER", response.getUser().getRoles().get(0));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertTrue(response.getUser().getPermissions().isEmpty()); // User has no permissions
 
     verify(tokenProvider).validateToken(refreshToken);
     verify(tokenProvider).getUserIdFromToken(refreshToken);
@@ -306,5 +327,179 @@ class AuthServiceImplTest {
     assertDoesNotThrow(() -> authService.logout(null));
 
     verify(tokenProvider, never()).validateToken(anyString());
+  }
+
+  @Test
+  void testRegister_WithMultipleRoles() {
+    RegisterRequest request = new RegisterRequest();
+    request.setEmail("admin@example.com");
+    request.setPassword("password123");
+
+    when(userRepository.existsByEmail("admin@example.com")).thenReturn(false);
+    when(userRepository.existsByUsername("admin")).thenReturn(false);
+    when(passwordEncoder.encode("password123")).thenReturn("$2a$12$encodedHash");
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      user.setId(userId);
+      user.setCreatedAt(LocalDateTime.now());
+      return user;
+    });
+    Role userRole = new Role();
+    userRole.setId(1);
+    userRole.setName(RoleType.USER.getName());
+    when(roleRepository.findByName(RoleType.USER.getName())).thenReturn(Optional.of(userRole));
+    when(userRoleRepository.save(any(UserRole.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    // Mock multiple roles
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("USER", "ADMIN", "MODERATOR"));
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of("READ", "WRITE", "DELETE"));
+    when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("access-token");
+    when(tokenProvider.generateRefreshToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("refresh-token");
+
+    AuthResponse response = authService.register(request);
+
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(3, response.getUser().getRoles().size());
+    assertTrue(response.getUser().getRoles().contains("USER"));
+    assertTrue(response.getUser().getRoles().contains("ADMIN"));
+    assertTrue(response.getUser().getRoles().contains("MODERATOR"));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertEquals(3, response.getUser().getPermissions().size());
+    assertTrue(response.getUser().getPermissions().contains("READ"));
+    assertTrue(response.getUser().getPermissions().contains("WRITE"));
+    assertTrue(response.getUser().getPermissions().contains("DELETE"));
+  }
+
+  @Test
+  void testLogin_WithMultipleRoles() {
+    LoginRequest request = new LoginRequest();
+    request.setEmail("admin@example.com");
+    request.setPassword("password123");
+
+    when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(testUser));
+    when(passwordEncoder.matches("password123", testUser.getPasswordHash())).thenReturn(true);
+    when(userRepository.save(any(User.class))).thenReturn(testUser);
+    // Mock multiple roles
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("USER", "ADMIN"));
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of("READ", "WRITE"));
+    when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("access-token");
+    when(tokenProvider.generateRefreshToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("refresh-token");
+
+    AuthResponse response = authService.login(request);
+
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(2, response.getUser().getRoles().size());
+    assertTrue(response.getUser().getRoles().contains("USER"));
+    assertTrue(response.getUser().getRoles().contains("ADMIN"));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertEquals(2, response.getUser().getPermissions().size());
+    assertTrue(response.getUser().getPermissions().contains("READ"));
+    assertTrue(response.getUser().getPermissions().contains("WRITE"));
+  }
+
+  @Test
+  void testRegister_UserWithNoRoles_DefaultsToUser() {
+    RegisterRequest request = new RegisterRequest();
+    request.setEmail("test@example.com");
+    request.setPassword("password123");
+
+    when(userRepository.existsByEmail("test@example.com")).thenReturn(false);
+    when(userRepository.existsByUsername("test")).thenReturn(false);
+    when(passwordEncoder.encode("password123")).thenReturn("$2a$12$encodedHash");
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+      User user = invocation.getArgument(0);
+      user.setId(userId);
+      user.setCreatedAt(LocalDateTime.now());
+      return user;
+    });
+    Role userRole = new Role();
+    userRole.setId(1);
+    userRole.setName(RoleType.USER.getName());
+    when(roleRepository.findByName(RoleType.USER.getName())).thenReturn(Optional.of(userRole));
+    when(userRoleRepository.save(any(UserRole.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    // Mock empty roles list - should default to USER
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of());
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of());
+    when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("access-token");
+    when(tokenProvider.generateRefreshToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("refresh-token");
+
+    AuthResponse response = authService.register(request);
+
+    // Should default to USER role when no roles found
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(1, response.getUser().getRoles().size());
+    assertEquals("USER", response.getUser().getRoles().get(0));
+    // Verify permissions are included (empty for new user)
+    assertNotNull(response.getUser().getPermissions());
+    assertTrue(response.getUser().getPermissions().isEmpty());
+  }
+
+  @Test
+  void testRefreshToken_WithUpdatedRoles() {
+    String refreshToken = "valid-refresh-token";
+
+    when(tokenProvider.validateToken(refreshToken)).thenReturn(true);
+    when(tokenProvider.getUserIdFromToken(refreshToken)).thenReturn(userId);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+    // Mock roles that may have changed since token was issued
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("USER", "MODERATOR"));
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of("READ", "MODERATE"));
+    when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("new-access-token");
+
+    AuthResponse response = authService.refreshToken(refreshToken);
+
+    // Verify updated roles are included in response
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(2, response.getUser().getRoles().size());
+    assertTrue(response.getUser().getRoles().contains("USER"));
+    assertTrue(response.getUser().getRoles().contains("MODERATOR"));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertEquals(2, response.getUser().getPermissions().size());
+    assertTrue(response.getUser().getPermissions().contains("READ"));
+    assertTrue(response.getUser().getPermissions().contains("MODERATE"));
+    
+    // Verify new token is generated with updated roles
+    verify(tokenProvider).generateAccessToken(any(UUID.class), eq("testuser"), eq("test@example.com"),
+        anyList(), anyList());
+  }
+
+  @Test
+  void testLogin_AdminUser() {
+    LoginRequest request = new LoginRequest();
+    request.setEmail("admin@example.com");
+    request.setPassword("password123");
+
+    when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(testUser));
+    when(passwordEncoder.matches("password123", testUser.getPasswordHash())).thenReturn(true);
+    when(userRepository.save(any(User.class))).thenReturn(testUser);
+    // Mock ADMIN role
+    when(userRoleRepository.findRoleNamesByUserId(userId)).thenReturn(List.of("ADMIN"));
+    when(permissionService.getUserPermissions(userId)).thenReturn(Set.of("READ", "WRITE", "DELETE", "ADMIN"));
+    when(tokenProvider.generateAccessToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("access-token");
+    when(tokenProvider.generateRefreshToken(any(UUID.class), anyString(), anyString(), anyList(), anyList()))
+        .thenReturn("refresh-token");
+
+    AuthResponse response = authService.login(request);
+
+    assertNotNull(response.getUser().getRoles());
+    assertEquals(1, response.getUser().getRoles().size());
+    assertEquals("ADMIN", response.getUser().getRoles().get(0));
+    // Verify permissions are included
+    assertNotNull(response.getUser().getPermissions());
+    assertEquals(4, response.getUser().getPermissions().size());
+    assertTrue(response.getUser().getPermissions().contains("READ"));
+    assertTrue(response.getUser().getPermissions().contains("WRITE"));
+    assertTrue(response.getUser().getPermissions().contains("DELETE"));
+    assertTrue(response.getUser().getPermissions().contains("ADMIN"));
   }
 }
