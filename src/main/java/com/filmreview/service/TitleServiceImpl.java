@@ -2,6 +2,7 @@ package com.filmreview.service;
 
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
+import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
 import com.filmreview.entity.Title.TitleType;
 import com.filmreview.entity.Genre;
 import com.filmreview.entity.Title;
@@ -81,6 +82,25 @@ public class TitleServiceImpl implements TitleService {
 
   @Override
   @Transactional
+  public Title getTitleByTmdbId(Integer tmdbId, String type) {
+    // 1. Check DB first
+    return titleRepository.findByTmdbId(tmdbId)
+        .orElseGet(() -> {
+          // 2. DB miss → Fetch from TMDB based on type
+          if ("movie".equals(type)) {
+            logger.info("Movie not found in DB, fetching from TMDB: tmdbId={}", tmdbId);
+            return fetchAndSaveTitle(tmdbId);
+          } else if ("tv_show".equals(type)) {
+            logger.info("TV series not found in DB, fetching from TMDB: tmdbId={}", tmdbId);
+            return fetchAndSaveTvSeries(tmdbId);
+          } else {
+            throw new IllegalArgumentException("Invalid type: " + type + ". Must be 'movie' or 'tv_show'");
+          }
+        });
+  }
+
+  @Override
+  @Transactional
   public Title fetchAndSaveTitle(Integer tmdbId) {
     TmdbMovieResponse movieResponse = tmdbService.getMovieDetails(tmdbId);
     if (movieResponse == null) {
@@ -100,8 +120,29 @@ public class TitleServiceImpl implements TitleService {
     return title;
   }
 
+  @Override
+  @Transactional
+  public Title fetchAndSaveTvSeries(Integer tmdbId) {
+    TmdbTvSeriesResponse tvSeriesResponse = tmdbService.getTvSeriesDetails(tmdbId);
+    if (tvSeriesResponse == null) {
+      throw new NotFoundException("TV series not found in TMDB: " + tmdbId);
+    }
+
+    Title title = titleMapper.toTitle(tvSeriesResponse);
+
+    // Save title
+    title = titleRepository.save(title);
+
+    // Save genres
+    saveGenresForTvSeries(title.getId(), tvSeriesResponse.getGenres());
+
+    logger.info("Successfully fetched and saved TV series: id={}, tmdbId={}",
+        title.getId(), tmdbId);
+    return title;
+  }
+
   /**
-   * Save genres for a title.
+   * Save genres for a title (movie version).
    */
   private void saveGenres(UUID titleId, List<TmdbMovieResponse.TmdbGenre> tmdbGenres) {
     if (tmdbGenres == null || tmdbGenres.isEmpty()) {
@@ -109,27 +150,44 @@ public class TitleServiceImpl implements TitleService {
     }
 
     for (TmdbMovieResponse.TmdbGenre movieGenre : tmdbGenres) {
-      Integer tmdbGenreId = movieGenre.getId();
-      String genreName = movieGenre.getName();
+      saveGenre(titleId, movieGenre.getId(), movieGenre.getName());
+    }
+  }
 
-      // Find or create genre
-      Genre genre = genreRepository.findById(tmdbGenreId)
-          .orElseGet(() -> {
-            Genre newGenre = new Genre();
-            newGenre.setId(tmdbGenreId);
-            newGenre.setName(genreName);
-            newGenre.setSlug(SlugUtils.generateSlug(genreName, 100));
-            return genreRepository.save(newGenre);
-          });
+  /**
+   * Save genres for a title (TV series version).
+   */
+  private void saveGenresForTvSeries(UUID titleId, List<TmdbTvSeriesResponse.TmdbGenre> tmdbGenres) {
+    if (tmdbGenres == null || tmdbGenres.isEmpty()) {
+      return;
+    }
 
-      // Create title-genre relationship if it doesn't exist
-      TitleGenreId titleGenreId = new TitleGenreId(titleId, genre.getId());
-      if (!titleGenreRepository.existsById(titleGenreId)) {
-        TitleGenre titleGenre = new TitleGenre();
-        titleGenre.setTitleId(titleId);
-        titleGenre.setGenreId(genre.getId());
-        titleGenreRepository.save(titleGenre);
-      }
+    for (TmdbTvSeriesResponse.TmdbGenre tvGenre : tmdbGenres) {
+      saveGenre(titleId, tvGenre.getId(), tvGenre.getName());
+    }
+  }
+
+  /**
+   * Helper method to save a single genre for a title.
+   */
+  private void saveGenre(UUID titleId, Integer tmdbGenreId, String genreName) {
+    // Find or create genre
+    Genre genre = genreRepository.findById(tmdbGenreId)
+        .orElseGet(() -> {
+          Genre newGenre = new Genre();
+          newGenre.setId(tmdbGenreId);
+          newGenre.setName(genreName);
+          newGenre.setSlug(SlugUtils.generateSlug(genreName, 100));
+          return genreRepository.save(newGenre);
+        });
+
+    // Create title-genre relationship if it doesn't exist
+    TitleGenreId titleGenreId = new TitleGenreId(titleId, genre.getId());
+    if (!titleGenreRepository.existsById(titleGenreId)) {
+      TitleGenre titleGenre = new TitleGenre();
+      titleGenre.setTitleId(titleId);
+      titleGenre.setGenreId(genre.getId());
+      titleGenreRepository.save(titleGenre);
     }
   }
 

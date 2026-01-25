@@ -72,11 +72,8 @@ public class TitleController {
    * GET /api/v1/titles/{identifier}?type={movie|tv_show}
    * 
    * - If identifier is numeric: treats as TMDB ID, requires type parameter
-   * (currently only "movie" supported)
    * - If identifier is not numeric: treats as slug, type is optional (can infer
    * from DB)
-   * 
-   * For now, only supports movies. TV show support will be added later.
    */
   @GetMapping("/{identifier}")
   public ResponseEntity<TitleDto> getTitleByIdentifier(
@@ -94,13 +91,11 @@ public class TitleController {
         }
 
         // Route to appropriate service method based on type
-        // For now, only support movies
-        if ("movie".equals(type)) {
-          Title title = titleService.getTitleByTmdbId(tmdbId);
+        if ("movie".equals(type) || "tv_show".equals(type)) {
+          Title title = titleService.getTitleByTmdbId(tmdbId, type);
           TitleDto dto = titleDtoMapper.toDto(title);
           return ResponseEntity.ok(dto);
         } else {
-          // TV show support will be added later
           return ResponseEntity.badRequest().build();
         }
       } catch (NumberFormatException e) {

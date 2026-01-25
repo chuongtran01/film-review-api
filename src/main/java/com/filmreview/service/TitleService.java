@@ -34,13 +34,29 @@ public interface TitleService {
   Title fetchAndSaveTitle(Integer tmdbId);
 
   /**
+   * Fetch TV series from TMDB and save to database.
+   */
+  Title fetchAndSaveTvSeries(Integer tmdbId);
+
+  /**
+   * Get title by TMDB ID with type. If not in DB, fetches from TMDB and stores
+   * it.
+   * 
+   * @param tmdbId The TMDB ID
+   * @param type   The type: "movie" or "tv_show"
+   * @return The title entity
+   */
+  Title getTitleByTmdbId(Integer tmdbId, String type);
+
+  /**
    * Get popular movies from TMDB. Fetches and saves movies that don't exist in
    * DB.
    */
   Page<Title> getPopularMovies(String language, int page, String region, Pageable pageable);
 
   /**
-   * Get popular TV shows from TMDB. Fetches and saves TV shows that don't exist in
+   * Get popular TV shows from TMDB. Fetches and saves TV shows that don't exist
+   * in
    * DB.
    */
   Page<Title> getPopularTVShows(String language, int page, Pageable pageable);

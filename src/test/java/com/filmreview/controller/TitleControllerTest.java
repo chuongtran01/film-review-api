@@ -205,10 +205,10 @@ class TitleControllerTest {
   }
 
   @Test
-  void testGetTitleByIdentifier_ByTmdbId_WithType() {
+  void testGetTitleByIdentifier_ByTmdbId_WithType_Movie() {
     // Arrange
     TitleDto movieDTO = createTitleDto(testMovie);
-    when(titleService.getTitleByTmdbId(603))
+    when(titleService.getTitleByTmdbId(603, "movie"))
         .thenReturn(testMovie);
     when(titleDtoMapper.toDto(testMovie)).thenReturn(movieDTO);
 
@@ -219,9 +219,41 @@ class TitleControllerTest {
     assertEquals(HttpStatus.OK, response.getStatusCode());
     assertNotNull(response.getBody());
     assertEquals("The Matrix", response.getBody().getTitle());
-    verify(titleService).getTitleByTmdbId(603);
+    verify(titleService).getTitleByTmdbId(603, "movie");
     verify(titleService, never()).getTitleBySlug(anyString());
     verify(titleDtoMapper).toDto(testMovie);
+  }
+
+  @Test
+  void testGetTitleByIdentifier_ByTmdbId_WithType_TvShow() {
+    // Arrange
+    TitleDto tvDTO = createTitleDto(testTVShow);
+    when(titleService.getTitleByTmdbId(1396, "tv_show"))
+        .thenReturn(testTVShow);
+    when(titleDtoMapper.toDto(testTVShow)).thenReturn(tvDTO);
+
+    // Act
+    ResponseEntity<TitleDto> response = titleController.getTitleByIdentifier("1396", "tv_show");
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals("Breaking Bad", response.getBody().getTitle());
+    verify(titleService).getTitleByTmdbId(1396, "tv_show");
+    verify(titleService, never()).getTitleBySlug(anyString());
+    verify(titleDtoMapper).toDto(testTVShow);
+  }
+
+  @Test
+  void testGetTitleByIdentifier_ByTmdbId_WithInvalidType_ReturnsBadRequest() {
+    // Act
+    ResponseEntity<TitleDto> response = titleController.getTitleByIdentifier("603", "invalid_type");
+
+    // Assert
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    verify(titleService, never()).getTitleByTmdbId(anyInt(), anyString());
+    verify(titleService, never()).getTitleBySlug(anyString());
+    verify(titleDtoMapper, never()).toDto(any());
   }
 
   @Test
