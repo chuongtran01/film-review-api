@@ -23,15 +23,9 @@ public interface TitleService {
   Title getTitleBySlug(String slug);
 
   /**
-   * Get movie by TMDB ID. If not in DB, fetches from TMDB and stores it.
-   * This is the on-demand fetching logic for MVP.
-   */
-  Title getTitleByTmdbId(Integer tmdbId);
-
-  /**
    * Fetch movie from TMDB and save to database.
    */
-  Title fetchAndSaveTitle(Integer tmdbId);
+  Title fetchAndSaveMovie(Integer tmdbId);
 
   /**
    * Fetch TV series from TMDB and save to database.

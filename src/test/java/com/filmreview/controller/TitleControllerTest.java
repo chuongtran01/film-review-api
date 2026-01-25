@@ -200,7 +200,7 @@ class TitleControllerTest {
     assertNotNull(response.getBody());
     assertEquals("The Matrix", response.getBody().getTitle());
     verify(titleService).getTitleBySlug("the-matrix-1999");
-    verify(titleService, never()).getTitleByTmdbId(anyInt());
+    verify(titleService, never()).getTitleByTmdbId(anyInt(), anyString());
     verify(titleDtoMapper).toDto(testMovie);
   }
 
@@ -263,7 +263,7 @@ class TitleControllerTest {
 
     // Assert
     assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    verify(titleService, never()).getTitleByTmdbId(anyInt());
+    verify(titleService, never()).getTitleByTmdbId(anyInt(), anyString());
     verify(titleService, never()).getTitleBySlug(anyString());
     verify(titleDtoMapper, never()).toDto(any());
   }

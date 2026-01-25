@@ -68,20 +68,6 @@ public class TitleServiceImpl implements TitleService {
 
   @Override
   @Transactional
-  public Title getTitleByTmdbId(Integer tmdbId) {
-    // 1. Check DB first
-    return titleRepository.findByTmdbId(tmdbId)
-        .orElseGet(() -> {
-          // 2. DB miss → Fetch from TMDB
-          logger.info("Movie not found in DB, fetching from TMDB: tmdbId={}", tmdbId);
-          Title title = fetchAndSaveTitle(tmdbId);
-          // 3. Store → Return
-          return title;
-        });
-  }
-
-  @Override
-  @Transactional
   public Title getTitleByTmdbId(Integer tmdbId, String type) {
     // 1. Check DB first
     return titleRepository.findByTmdbId(tmdbId)
@@ -89,7 +75,7 @@ public class TitleServiceImpl implements TitleService {
           // 2. DB miss → Fetch from TMDB based on type
           if ("movie".equals(type)) {
             logger.info("Movie not found in DB, fetching from TMDB: tmdbId={}", tmdbId);
-            return fetchAndSaveTitle(tmdbId);
+            return fetchAndSaveMovie(tmdbId);
           } else if ("tv_show".equals(type)) {
             logger.info("TV series not found in DB, fetching from TMDB: tmdbId={}", tmdbId);
             return fetchAndSaveTvSeries(tmdbId);
@@ -101,7 +87,7 @@ public class TitleServiceImpl implements TitleService {
 
   @Override
   @Transactional
-  public Title fetchAndSaveTitle(Integer tmdbId) {
+  public Title fetchAndSaveMovie(Integer tmdbId) {
     TmdbMovieResponse movieResponse = tmdbService.getMovieDetails(tmdbId);
     if (movieResponse == null) {
       throw new NotFoundException("Movie not found in TMDB: " + tmdbId);
@@ -296,7 +282,7 @@ public class TitleServiceImpl implements TitleService {
 
     // Note: This Title object is not persisted. It will be saved when user views
     // details
-    // via getTitleByTmdbId() which calls fetchAndSaveTitle()
+    // via getTitleByTmdbId() which calls fetchAndSaveMovie()
 
     return title;
   }
@@ -404,7 +390,7 @@ public class TitleServiceImpl implements TitleService {
 
     // Note: This Title object is not persisted. It will be saved when user views
     // details
-    // via getTitleByTmdbId() which calls fetchAndSaveTitle()
+    // via getTitleByTmdbId() which calls fetchAndSaveMovie()
 
     return title;
   }

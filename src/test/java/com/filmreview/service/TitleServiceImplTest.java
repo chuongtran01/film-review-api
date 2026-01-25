@@ -295,12 +295,12 @@ class TitleServiceImplTest {
     response.setTitle("The Matrix");
     response.setOverview("A computer hacker learns about the true nature of reality");
     response.setReleaseDate(LocalDate.of(1999, 3, 31));
-    
+
     TmdbMovieResponse.TmdbGenre genre = new TmdbMovieResponse.TmdbGenre();
     genre.setId(28);
     genre.setName("Action");
     response.setGenres(Arrays.asList(genre));
-    
+
     return response;
   }
 
@@ -313,17 +313,17 @@ class TitleServiceImplTest {
     response.setNumberOfSeasons(5);
     response.setNumberOfEpisodes(62);
     response.setStatus("Ended");
-    
+
     TmdbTvSeriesResponse.TmdbGenre genre1 = new TmdbTvSeriesResponse.TmdbGenre();
     genre1.setId(18);
     genre1.setName("Drama");
-    
+
     TmdbTvSeriesResponse.TmdbGenre genre2 = new TmdbTvSeriesResponse.TmdbGenre();
     genre2.setId(80);
     genre2.setName("Crime");
-    
+
     response.setGenres(Arrays.asList(genre1, genre2));
-    
+
     return response;
   }
 }
