@@ -19,6 +19,15 @@ configurations {
     }
 }
 
+// Configure annotation processor order: Lombok before MapStruct
+tasks.named('compileJava') {
+    options.annotationProcessorPath = configurations.annotationProcessor
+    options.compilerArgs += [
+        '-Amapstruct.defaultComponentModel=spring',
+        '-Amapstruct.verbose=true'
+    ]
+}
+
 repositories {
     mavenCentral()
 }
@@ -59,6 +68,13 @@ dependencies {
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+    
+    // MapStruct for object mapping
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    
+    // Lombok + MapStruct integration
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     
     // Apache Commons Lang3 for random data generation
     implementation 'org.apache.commons:commons-lang3:3.14.0'
