@@ -41,7 +41,16 @@ public class TitleMapper {
       title.setBackdropUrl(tmdbService.getImageUrl(response.getBackdropPath(), "w1920"));
     }
     title.setStatus(response.getStatus());
-    title.setUserRatingCount(0);
+
+    // Transfer TMDB ratings (as initial values, will be updated by user ratings)
+    if (response.getVoteAverage() != null) {
+      title.setUserRatingAvg(java.math.BigDecimal.valueOf(response.getVoteAverage()));
+    }
+    if (response.getVoteCount() != null) {
+      title.setUserRatingCount(response.getVoteCount());
+    } else {
+      title.setUserRatingCount(0);
+    }
     return title;
   }
 
@@ -68,7 +77,16 @@ public class TitleMapper {
     if (response.getBackdropPath() != null && !response.getBackdropPath().isEmpty()) {
       title.setBackdropUrl(tmdbService.getImageUrl(response.getBackdropPath(), "w1920"));
     }
-    title.setUserRatingCount(0);
+
+    // Transfer TMDB ratings (as initial values, will be updated by user ratings)
+    if (response.getVoteAverage() != null) {
+      title.setUserRatingAvg(java.math.BigDecimal.valueOf(response.getVoteAverage()));
+    }
+    if (response.getVoteCount() != null) {
+      title.setUserRatingCount(response.getVoteCount());
+    } else {
+      title.setUserRatingCount(0);
+    }
     return title;
   }
 }
