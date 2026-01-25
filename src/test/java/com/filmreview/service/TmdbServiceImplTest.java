@@ -4,17 +4,21 @@ import com.filmreview.config.TmdbConfig;
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
+import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
 import com.filmreview.mapper.TmdbMovieMapper;
+import com.filmreview.mapper.TmdbTvSeriesMapper;
 import info.movito.themoviedbapi.TmdbApi;
 import info.movito.themoviedbapi.TmdbGenre;
 import info.movito.themoviedbapi.TmdbMovieLists;
 import info.movito.themoviedbapi.TmdbMovies;
+import info.movito.themoviedbapi.TmdbTvSeries;
 import info.movito.themoviedbapi.TmdbTvSeriesLists;
 import info.movito.themoviedbapi.model.core.Genre;
 import info.movito.themoviedbapi.model.core.Movie;
 import info.movito.themoviedbapi.model.core.MovieResultsPage;
 import info.movito.themoviedbapi.model.core.TvSeriesResultsPage;
 import info.movito.themoviedbapi.model.movies.MovieDb;
+import info.movito.themoviedbapi.model.tv.series.TvSeriesDb;
 import info.movito.themoviedbapi.tools.TmdbException;
 import info.movito.themoviedbapi.tools.appendtoresponse.MovieAppendToResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +47,9 @@ class TmdbServiceImplTest {
   private TmdbMovieMapper tmdbMovieMapper;
 
   @Mock
+  private TmdbTvSeriesMapper tmdbTvSeriesMapper;
+
+  @Mock
   private TmdbApi tmdbApi;
 
   @Mock
@@ -50,6 +57,9 @@ class TmdbServiceImplTest {
 
   @Mock
   private TmdbMovieLists tmdbMovieLists;
+
+  @Mock
+  private TmdbTvSeries tmdbTvSeries;
 
   @Mock
   private TmdbTvSeriesLists tmdbTvSeriesLists;
@@ -71,12 +81,13 @@ class TmdbServiceImplTest {
     lenient().when(tmdbConfig.getImageBaseUrl()).thenReturn(TEST_IMAGE_BASE_URL);
 
     // Create service instance
-    tmdbService = new TmdbServiceImpl(tmdbConfig, tmdbMovieMapper);
+    tmdbService = new TmdbServiceImpl(tmdbConfig, tmdbMovieMapper, tmdbTvSeriesMapper);
 
     // Use reflection to inject mocked dependencies after construction
     setPrivateField(tmdbService, "tmdbApi", tmdbApi);
     setPrivateField(tmdbService, "tmdbMovies", tmdbMovies);
     setPrivateField(tmdbService, "tmdbMoviesLists", tmdbMovieLists);
+    setPrivateField(tmdbService, "tmdbTvSeries", tmdbTvSeries);
     setPrivateField(tmdbService, "tmdbTvSeriesLists", tmdbTvSeriesLists);
     setPrivateField(tmdbService, "tmdbGenre", tmdbGenre);
   }
@@ -139,6 +150,59 @@ class TmdbServiceImplTest {
         () -> tmdbService.getMovieDetails(tmdbId));
     assertEquals("Failed to fetch movie details from TMDB", exception.getMessage());
     verify(tmdbMovies).getDetails(tmdbId, DEFAULT_LANGUAGE, MovieAppendToResponse.CREDITS);
+  }
+
+  @Test
+  void testGetTvSeriesDetails_Success() throws Exception {
+    // Arrange
+    Integer tmdbId = 1399;
+    TvSeriesDb tvSeriesDb = mock(TvSeriesDb.class);
+    TmdbTvSeriesResponse expectedResponse = new TmdbTvSeriesResponse();
+    expectedResponse.setId(tmdbId);
+    expectedResponse.setName("Game of Thrones");
+
+    when(tmdbTvSeries.getDetails(tmdbId, DEFAULT_LANGUAGE)).thenReturn(tvSeriesDb);
+    when(tmdbTvSeriesMapper.toTvSeriesResponse(tvSeriesDb)).thenReturn(expectedResponse);
+
+    // Act
+    TmdbTvSeriesResponse result = tmdbService.getTvSeriesDetails(tmdbId);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(tmdbId, result.getId());
+    assertEquals("Game of Thrones", result.getName());
+    verify(tmdbTvSeries).getDetails(tmdbId, DEFAULT_LANGUAGE);
+    verify(tmdbTvSeriesMapper).toTvSeriesResponse(tvSeriesDb);
+  }
+
+  @Test
+  void testGetTvSeriesDetails_TmdbException_ReturnsNull() throws Exception {
+    // Arrange
+    Integer tmdbId = 999999;
+    when(tmdbTvSeries.getDetails(tmdbId, DEFAULT_LANGUAGE))
+        .thenThrow(new TmdbException("TV series not found"));
+
+    // Act
+    TmdbTvSeriesResponse result = tmdbService.getTvSeriesDetails(tmdbId);
+
+    // Assert
+    assertNull(result);
+    verify(tmdbTvSeries).getDetails(tmdbId, DEFAULT_LANGUAGE);
+    verify(tmdbTvSeriesMapper, never()).toTvSeriesResponse(any());
+  }
+
+  @Test
+  void testGetTvSeriesDetails_GenericException_ThrowsRuntimeException() throws Exception {
+    // Arrange
+    Integer tmdbId = 1399;
+    when(tmdbTvSeries.getDetails(tmdbId, DEFAULT_LANGUAGE))
+        .thenThrow(new RuntimeException("Network error"));
+
+    // Act & Assert
+    RuntimeException exception = assertThrows(RuntimeException.class,
+        () -> tmdbService.getTvSeriesDetails(tmdbId));
+    assertEquals("Failed to fetch TV series details from TMDB", exception.getMessage());
+    verify(tmdbTvSeries).getDetails(tmdbId, DEFAULT_LANGUAGE);
   }
 
   @Test

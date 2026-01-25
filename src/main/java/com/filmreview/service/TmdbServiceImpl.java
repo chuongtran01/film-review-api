@@ -4,7 +4,9 @@ import com.filmreview.config.TmdbConfig;
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
+import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
 import com.filmreview.mapper.TmdbMovieMapper;
+import com.filmreview.mapper.TmdbTvSeriesMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +21,7 @@ import info.movito.themoviedbapi.TmdbTvSeriesLists;
 import info.movito.themoviedbapi.model.core.MovieResultsPage;
 import info.movito.themoviedbapi.model.core.TvSeriesResultsPage;
 import info.movito.themoviedbapi.model.movies.MovieDb;
+import info.movito.themoviedbapi.model.tv.series.TvSeriesDb;
 import info.movito.themoviedbapi.tools.TmdbException;
 import info.movito.themoviedbapi.tools.appendtoresponse.MovieAppendToResponse;
 
@@ -48,10 +51,13 @@ public class TmdbServiceImpl implements TmdbService {
   private final TmdbTvSeriesLists tmdbTvSeriesLists;
   private final TmdbGenre tmdbGenre;
   private final TmdbMovieMapper tmdbMovieMapper;
+  private final TmdbTvSeriesMapper tmdbTvSeriesMapper;
 
-  public TmdbServiceImpl(TmdbConfig tmdbConfig, TmdbMovieMapper tmdbMovieMapper) {
+  public TmdbServiceImpl(TmdbConfig tmdbConfig, TmdbMovieMapper tmdbMovieMapper,
+      TmdbTvSeriesMapper tmdbTvSeriesMapper) {
     this.tmdbConfig = tmdbConfig;
     this.tmdbMovieMapper = tmdbMovieMapper;
+    this.tmdbTvSeriesMapper = tmdbTvSeriesMapper;
     this.tmdbApi = new TmdbApi(tmdbConfig.getApiKey());
     this.tmdbMovies = tmdbApi.getMovies();
     this.tmdbMoviesLists = tmdbApi.getMovieLists();
@@ -71,6 +77,20 @@ public class TmdbServiceImpl implements TmdbService {
     } catch (Exception e) {
       logger.error("Error fetching movie details from TMDB: {}", tmdbId, e);
       throw new RuntimeException("Failed to fetch movie details from TMDB", e);
+    }
+  }
+
+  @Override
+  public TmdbTvSeriesResponse getTvSeriesDetails(Integer tmdbId) {
+    try {
+      TvSeriesDb tvSeries = tmdbTvSeries.getDetails(tmdbId, DEFAULT_LANGUAGE);
+      return tmdbTvSeriesMapper.toTvSeriesResponse(tvSeries);
+    } catch (TmdbException e) {
+      logger.warn("TV series not found in TMDB: {}", tmdbId, e);
+      return null;
+    } catch (Exception e) {
+      logger.error("Error fetching TV series details from TMDB: {}", tmdbId, e);
+      throw new RuntimeException("Failed to fetch TV series details from TMDB", e);
     }
   }
 

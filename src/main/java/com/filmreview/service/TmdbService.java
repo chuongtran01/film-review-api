@@ -18,6 +18,11 @@ public interface TmdbService {
   TmdbMovieResponse getMovieDetails(Integer tmdbId);
 
   /**
+   * Get TV series details by TMDB ID.
+   */
+  com.filmreview.dto.tmdb.TmdbTvSeriesResponse getTvSeriesDetails(Integer tmdbId);
+
+  /**
    * Get popular movies as Spring Data Page (pageable).
    */
   Page<TmdbPageResponse.TmdbMovieItem> getPopularMovies(String language, int page, String region);
