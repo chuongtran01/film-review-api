@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 public class Genre {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  // No @GeneratedValue - we use TMDB genre IDs directly
   private Integer id;
 
   @Column(name = "name", unique = true, nullable = false, length = 100)

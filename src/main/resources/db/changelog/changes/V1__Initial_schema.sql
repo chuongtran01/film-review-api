@@ -99,7 +99,7 @@ CREATE TABLE title_people (
 -- changeset chuong.tran:7
 -- comment: Create genres table
 CREATE TABLE genres (
-    id SERIAL PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
