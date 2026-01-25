@@ -40,6 +40,81 @@ public class TmdbMovieMapper {
     response.setVoteAverage(movie.getVoteAverage());
     response.setVoteCount(movie.getVoteCount());
 
+    // Map simple fields
+    response.setBudget(movie.getBudget());
+    response.setHomepage(movie.getHomepage());
+    response.setOriginalLanguage(movie.getOriginalLanguage());
+    // Revenue is Long in MovieDb, convert to Integer (may lose precision for very
+    // large values)
+    if (movie.getRevenue() != null) {
+      response.setRevenue(movie.getRevenue().intValue());
+    }
+
+    // Map production companies
+    if (movie.getProductionCompanies() != null) {
+      response.setProductionCompanies(movie.getProductionCompanies().stream()
+          .map(company -> {
+            TmdbMovieResponse.TmdbProductionCompany pc = new TmdbMovieResponse.TmdbProductionCompany();
+            pc.setId(company.getId());
+            pc.setLogoPath(company.getLogoPath());
+            pc.setName(company.getName());
+            pc.setOriginCountry(company.getOriginCountry());
+            return pc;
+          })
+          .collect(Collectors.toList()));
+    }
+
+    // Map production countries
+    if (movie.getProductionCountries() != null) {
+      response.setProductionCountries(movie.getProductionCountries().stream()
+          .map(country -> {
+            TmdbMovieResponse.TmdbProductionCountry pc = new TmdbMovieResponse.TmdbProductionCountry();
+            // Try common method name patterns for ISO code
+            try {
+              java.lang.reflect.Method method = country.getClass().getMethod("getIso31661");
+              pc.setIso3166_1((String) method.invoke(country));
+            } catch (Exception e) {
+              // Fallback: try getIso() or getCountryCode()
+              try {
+                java.lang.reflect.Method method = country.getClass().getMethod("getIso");
+                pc.setIso3166_1((String) method.invoke(country));
+              } catch (Exception ex) {
+                // If no method found, leave as null
+                pc.setIso3166_1(null);
+              }
+            }
+            pc.setName(country.getName());
+            return pc;
+          })
+          .collect(Collectors.toList()));
+    }
+
+    // Map spoken languages
+    if (movie.getSpokenLanguages() != null) {
+      response.setSpokenLanguages(movie.getSpokenLanguages().stream()
+          .map(lang -> {
+            TmdbMovieResponse.TmdbSpokenLanguage sl = new TmdbMovieResponse.TmdbSpokenLanguage();
+            sl.setEnglishName(lang.getEnglishName());
+            // Try common method name patterns for ISO code
+            try {
+              java.lang.reflect.Method method = lang.getClass().getMethod("getIso6391");
+              sl.setIso639_1((String) method.invoke(lang));
+            } catch (Exception e) {
+              // Fallback: try getIso() or getLanguageCode()
+              try {
+                java.lang.reflect.Method method = lang.getClass().getMethod("getIso");
+                sl.setIso639_1((String) method.invoke(lang));
+              } catch (Exception ex) {
+                // If no method found, leave as null
+                sl.setIso639_1(null);
+              }
+            }
+            sl.setName(lang.getName());
+            return sl;
+          })
+          .collect(Collectors.toList()));
+    }
+
     // Map genres
     if (movie.getGenres() != null) {
       response.setGenres(movie.getGenres().stream()
