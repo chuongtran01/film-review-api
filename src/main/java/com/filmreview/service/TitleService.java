@@ -38,4 +38,10 @@ public interface TitleService {
    * DB.
    */
   Page<Title> getPopularMovies(String language, int page, String region, Pageable pageable);
+
+  /**
+   * Get popular TV shows from TMDB. Fetches and saves TV shows that don't exist in
+   * DB.
+   */
+  Page<Title> getPopularTVShows(String language, int page, Pageable pageable);
 }

@@ -42,11 +42,16 @@ public class TitleController {
       @RequestParam(required = false, defaultValue = "20") int pageSize,
       @RequestParam(required = false) String sort) {
 
-    // If sort is "popular", use TMDB getPopularMovies
-    if ("popular".equals(sort) && "movie".equals(type)) {
+    // If sort is "popular", use TMDB getPopularMovies or getPopularTVShows
+    if ("popular".equals(sort)) {
       Pageable pageable = PageRequest.of(page - 1, pageSize); // Convert to 0-indexed
-      Page<Title> titlesPage = titleService.getPopularMovies(DEFAULT_LANGUAGE, page, DEFAULT_REGION, pageable);
-      return ResponseEntity.ok(titlesPage);
+      if ("movie".equals(type)) {
+        Page<Title> titlesPage = titleService.getPopularMovies(DEFAULT_LANGUAGE, page, DEFAULT_REGION, pageable);
+        return ResponseEntity.ok(titlesPage);
+      } else if ("tv_show".equals(type)) {
+        Page<Title> titlesPage = titleService.getPopularTVShows(DEFAULT_LANGUAGE, page, pageable);
+        return ResponseEntity.ok(titlesPage);
+      }
     }
 
     // TODO: Implement other sort options and filtering

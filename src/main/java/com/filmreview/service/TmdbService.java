@@ -23,6 +23,11 @@ public interface TmdbService {
   Page<TmdbPageResponse.TmdbMovieItem> getPopularMovies(String language, int page, String region);
 
   /**
+   * Get popular TV shows as Spring Data Page (pageable).
+   */
+  Page<TmdbPageResponse.TmdbTvSeriesItem> getPopularTVShows(String language, int page);
+
+  /**
    * Get official movie genres list from TMDB.
    */
   List<TmdbGenreInfo> getMovieGenres();

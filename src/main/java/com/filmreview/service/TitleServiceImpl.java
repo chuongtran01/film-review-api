@@ -2,6 +2,7 @@ package com.filmreview.service;
 
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
+import com.filmreview.entity.Title.TitleType;
 import com.filmreview.entity.Genre;
 import com.filmreview.entity.Title;
 import com.filmreview.entity.TitleGenre;
@@ -231,6 +232,114 @@ public class TitleServiceImpl implements TitleService {
     }
     if (tmdbMovie.getVoteCount() != null) {
       title.setUserRatingCount(tmdbMovie.getVoteCount());
+    } else {
+      title.setUserRatingCount(0);
+    }
+
+    // Note: This Title object is not persisted. It will be saved when user views
+    // details
+    // via getTitleByTmdbId() which calls fetchAndSaveTitle()
+
+    return title;
+  }
+
+  @Override
+  public Page<Title> getPopularTVShows(String language, int page, Pageable pageable) {
+    int requestedPageSize = pageable.getPageSize();
+    int requestedPage = pageable.getPageNumber();
+
+    // TMDB returns 20 items per page. Calculate which TMDB page we need
+    int tmdbPage = (requestedPage * requestedPageSize) / 20 + 1;
+    int startIndexInTmdbPage = (requestedPage * requestedPageSize) % 20;
+
+    // Fetch popular TV shows from TMDB (lightweight metadata only)
+    Page<TmdbPageResponse.TmdbTvSeriesItem> tmdbTVShows = tmdbService.getPopularTVShows(language, tmdbPage);
+
+    // For each TV show, check if it exists in DB first (to get user ratings)
+    // If not in DB, return lightweight version without saving
+    // Only save to DB when user views details (via getTitleByTmdbId)
+    List<Title> allTitles = tmdbTVShows.getContent().stream()
+        .map(tmdbTV -> {
+          // Check if title exists in DB (has user ratings, etc.)
+          return titleRepository.findByTmdbId(tmdbTV.getId())
+              .orElseGet(() -> {
+                // Not in DB yet - return lightweight version without saving
+                return tmdbTVItemToTitle(tmdbTV);
+              });
+        })
+        .collect(Collectors.toList());
+
+    // If we need items beyond the current TMDB page, fetch the next page
+    int endIndex = startIndexInTmdbPage + requestedPageSize;
+    if (endIndex > allTitles.size() && tmdbTVShows.hasNext()) {
+      // Fetch next TMDB page to get more items
+      Page<TmdbPageResponse.TmdbTvSeriesItem> nextTmdbPage = tmdbService.getPopularTVShows(language, tmdbPage + 1);
+      List<Title> nextPageTitles = nextTmdbPage.getContent().stream()
+          .map(tmdbTV -> {
+            return titleRepository.findByTmdbId(tmdbTV.getId())
+                .orElseGet(() -> tmdbTVItemToTitle(tmdbTV));
+          })
+          .collect(Collectors.toList());
+      allTitles.addAll(nextPageTitles);
+    }
+
+    // Slice to the requested page size
+    int fromIndex = Math.min(startIndexInTmdbPage, allTitles.size());
+    int toIndex = Math.min(fromIndex + requestedPageSize, allTitles.size());
+    List<Title> slicedTitles = allTitles.subList(fromIndex, toIndex);
+
+    // Return as Page with requested pagination info
+    return new PageImpl<>(
+        slicedTitles,
+        pageable,
+        tmdbTVShows.getTotalElements());
+  }
+
+  /**
+   * Convert TmdbTvSeriesItem to Title entity without saving to database.
+   * This is used for list views. Full details are fetched and saved only when
+   * user views details.
+   */
+  private Title tmdbTVItemToTitle(TmdbPageResponse.TmdbTvSeriesItem tmdbTV) {
+    Title title = new Title();
+    title.setType(TitleType.tv_show);
+    title.setTmdbId(tmdbTV.getId());
+    title.setTitle(tmdbTV.getName());
+    title.setOriginalTitle(tmdbTV.getOriginalName());
+    title.setSynopsis(tmdbTV.getOverview());
+
+    // Parse first air date if available
+    if (tmdbTV.getFirstAirDate() != null && !tmdbTV.getFirstAirDate().isEmpty()) {
+      try {
+        title.setFirstAirDate(java.time.LocalDate.parse(tmdbTV.getFirstAirDate()));
+        // Also set release date for consistency
+        title.setReleaseDate(java.time.LocalDate.parse(tmdbTV.getFirstAirDate()));
+      } catch (Exception e) {
+        logger.debug("Failed to parse first air date: {}", tmdbTV.getFirstAirDate());
+      }
+    }
+
+    // Set poster URL if available
+    if (tmdbTV.getPosterPath() != null && !tmdbTV.getPosterPath().isEmpty()) {
+      title.setPosterUrl(tmdbService.getImageUrl(tmdbTV.getPosterPath(), "w500"));
+    }
+
+    // Set backdrop URL if available
+    if (tmdbTV.getBackdropPath() != null && !tmdbTV.getBackdropPath().isEmpty()) {
+      title.setBackdropUrl(tmdbService.getImageUrl(tmdbTV.getBackdropPath(), "w1920"));
+    }
+
+    // Generate slug from title for URL routing
+    if (tmdbTV.getName() != null) {
+      title.setSlug(com.filmreview.util.SlugUtils.generateSlug(tmdbTV.getName()));
+    }
+
+    // Set TMDB vote average and count (scale 0-10, convert to BigDecimal)
+    if (tmdbTV.getVoteAverage() != null) {
+      title.setUserRatingAvg(java.math.BigDecimal.valueOf(tmdbTV.getVoteAverage()));
+    }
+    if (tmdbTV.getVoteCount() != null) {
+      title.setUserRatingCount(tmdbTV.getVoteCount());
     } else {
       title.setUserRatingCount(0);
     }

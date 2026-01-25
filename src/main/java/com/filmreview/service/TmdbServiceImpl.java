@@ -14,7 +14,10 @@ import info.movito.themoviedbapi.TmdbApi;
 import info.movito.themoviedbapi.TmdbGenre;
 import info.movito.themoviedbapi.TmdbMovieLists;
 import info.movito.themoviedbapi.TmdbMovies;
+import info.movito.themoviedbapi.TmdbTvSeries;
+import info.movito.themoviedbapi.TmdbTvSeriesLists;
 import info.movito.themoviedbapi.model.core.MovieResultsPage;
+import info.movito.themoviedbapi.model.core.TvSeriesResultsPage;
 import info.movito.themoviedbapi.model.movies.MovieDb;
 import info.movito.themoviedbapi.tools.TmdbException;
 import info.movito.themoviedbapi.tools.appendtoresponse.MovieAppendToResponse;
@@ -41,6 +44,8 @@ public class TmdbServiceImpl implements TmdbService {
   private final TmdbConfig tmdbConfig;
   private final TmdbMovies tmdbMovies;
   private final TmdbMovieLists tmdbMoviesLists;
+  private final TmdbTvSeries tmdbTvSeries;
+  private final TmdbTvSeriesLists tmdbTvSeriesLists;
   private final TmdbGenre tmdbGenre;
   private final TmdbMovieMapper tmdbMovieMapper;
 
@@ -50,6 +55,8 @@ public class TmdbServiceImpl implements TmdbService {
     this.tmdbApi = new TmdbApi(tmdbConfig.getApiKey());
     this.tmdbMovies = tmdbApi.getMovies();
     this.tmdbMoviesLists = tmdbApi.getMovieLists();
+    this.tmdbTvSeries = tmdbApi.getTvSeries();
+    this.tmdbTvSeriesLists = tmdbApi.getTvSeriesLists();
     this.tmdbGenre = tmdbApi.getGenre();
   }
 
@@ -88,6 +95,47 @@ public class TmdbServiceImpl implements TmdbService {
     } catch (Exception e) {
       logger.error("Error fetching popular movies from TMDB", e);
       throw new RuntimeException("Failed to fetch popular movies from TMDB", e);
+    }
+  }
+
+  @Override
+  public Page<TmdbPageResponse.TmdbTvSeriesItem> getPopularTVShows(String language, int page) {
+    try {
+      TvSeriesResultsPage resultsPage = tmdbTvSeriesLists.getPopular(language, page);
+      List<TmdbPageResponse.TmdbTvSeriesItem> items = resultsPage.getResults().stream()
+          .map(tvSeries -> {
+            TmdbPageResponse.TmdbTvSeriesItem item = new TmdbPageResponse.TmdbTvSeriesItem();
+            item.setId(tvSeries.getId());
+            item.setName(tvSeries.getName());
+            item.setOriginalName(tvSeries.getOriginalName());
+            item.setOverview(tvSeries.getOverview());
+            item.setPosterPath(tvSeries.getPosterPath());
+            item.setBackdropPath(tvSeries.getBackdropPath());
+            item.setFirstAirDate(tvSeries.getFirstAirDate());
+            item.setVoteAverage(tvSeries.getVoteAverage());
+            item.setVoteCount(tvSeries.getVoteCount());
+            item.setPopularity(tvSeries.getPopularity());
+            item.setOriginalLanguage(tvSeries.getOriginalLanguage());
+            if (tvSeries.getGenreIds() != null) {
+              item.setGenreIds(tvSeries.getGenreIds());
+            }
+            return item;
+          })
+          .collect(Collectors.toList());
+
+      // TMDB uses 1-indexed pages, convert to 0-indexed for Spring
+      int springPage = resultsPage.getPage() != null ? resultsPage.getPage() - 1 : 0;
+      // TMDB typically returns 20 items per page
+      int size = 20;
+      long totalElements = resultsPage.getTotalResults() != null ? resultsPage.getTotalResults() : 0;
+
+      return new PageImpl<>(
+          items,
+          PageRequest.of(springPage, size),
+          totalElements);
+    } catch (Exception e) {
+      logger.error("Error fetching popular TV shows from TMDB", e);
+      throw new RuntimeException("Failed to fetch popular TV shows from TMDB", e);
     }
   }
 
