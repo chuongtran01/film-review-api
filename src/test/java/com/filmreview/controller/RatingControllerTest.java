@@ -160,7 +160,7 @@ class RatingControllerTest {
     mockMvc.perform(put("/api/v1/ratings/{titleId}", titleId)
         .contentType(MediaType.APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isForbidden()); // 403 - @PreAuthorize returns Forbidden when not authenticated
+        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not authenticated
   }
 
   @Test

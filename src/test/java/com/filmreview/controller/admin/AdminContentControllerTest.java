@@ -160,24 +160,23 @@ class AdminContentControllerTest {
 
   @Test
   void testGetGenres_Success_AsAdmin() throws Exception {
-    // Arrange - Create test genres (only if they don't exist)
-    genreRepository.findById(28).orElseGet(() -> {
-      Genre g = new Genre();
-      g.setId(28);
-      g.setName("Action");
-      g.setSlug("action");
-      g.setCreatedAt(LocalDateTime.now());
-      return genreRepository.save(g);
-    });
+    // Arrange - Create test genres
+    Genre genre1 = new Genre();
+    genre1.setId(28);
+    genre1.setName("Action");
+    genre1.setSlug("action");
+    genre1.setCreatedAt(LocalDateTime.now());
+    genre1 = genreRepository.save(genre1);
 
-    genreRepository.findById(12).orElseGet(() -> {
-      Genre g = new Genre();
-      g.setId(12);
-      g.setName("Adventure");
-      g.setSlug("adventure");
-      g.setCreatedAt(LocalDateTime.now());
-      return genreRepository.save(g);
-    });
+    Genre genre2 = new Genre();
+    genre2.setId(12);
+    genre2.setName("Adventure");
+    genre2.setSlug("adventure");
+    genre2.setCreatedAt(LocalDateTime.now());
+    genre2 = genreRepository.save(genre2);
+
+    // Mock GenreService to return the genres we just created
+    when(genreService.getAllGenres()).thenReturn(List.of(genre1, genre2));
 
     // Act & Assert
     mockMvc.perform(get("/api/v1/admin/titles/genres")
@@ -194,15 +193,16 @@ class AdminContentControllerTest {
 
   @Test
   void testGetGenres_Success_AsModerator() throws Exception {
-    // Arrange - Create test genre (only if it doesn't exist)
-    genreRepository.findById(18).orElseGet(() -> {
-      Genre g = new Genre();
-      g.setId(18);
-      g.setName("Drama");
-      g.setSlug("drama");
-      g.setCreatedAt(LocalDateTime.now());
-      return genreRepository.save(g);
-    });
+    // Arrange - Create test genre
+    Genre genre = new Genre();
+    genre.setId(18);
+    genre.setName("Drama");
+    genre.setSlug("drama");
+    genre.setCreatedAt(LocalDateTime.now());
+    genre = genreRepository.save(genre);
+
+    // Mock GenreService to return the genre we just created
+    when(genreService.getAllGenres()).thenReturn(List.of(genre));
 
     // Act & Assert
     mockMvc.perform(get("/api/v1/admin/titles/genres")
@@ -233,7 +233,7 @@ class AdminContentControllerTest {
   void testGetGenres_Unauthorized_NoToken() throws Exception {
     // Act & Assert
     mockMvc.perform(get("/api/v1/admin/titles/genres"))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not authenticated
   }
 
   @Test
@@ -283,7 +283,7 @@ class AdminContentControllerTest {
     // Act & Assert
     mockMvc.perform(post("/api/v1/admin/titles/genres/sync")
         .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not authenticated
   }
 
   @Test
