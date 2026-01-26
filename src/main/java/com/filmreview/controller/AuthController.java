@@ -49,9 +49,20 @@ public class AuthController {
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
-    AuthResponse authResponse = authService.refreshToken(refreshToken);
-    setRefreshTokenCookie(response, authResponse.getRefreshToken());
-    return ResponseEntity.ok(authResponse);
+    try {
+      AuthResponse authResponse = authService.refreshToken(refreshToken);
+      setRefreshTokenCookie(response, authResponse.getRefreshToken());
+      return ResponseEntity.ok(authResponse);
+    } catch (com.filmreview.exception.UnauthorizedException e) {
+      // Clear refresh token cookie if refresh fails
+      Cookie cookie = new Cookie("refresh_token", null);
+      cookie.setHttpOnly(true);
+      cookie.setSecure(false);
+      cookie.setPath("/");
+      cookie.setMaxAge(0);
+      response.addCookie(cookie);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
   }
 
   @PostMapping("/logout")
