@@ -466,7 +466,7 @@ class AuthServiceImplTest {
     assertEquals(2, response.getUser().getPermissions().size());
     assertTrue(response.getUser().getPermissions().contains("READ"));
     assertTrue(response.getUser().getPermissions().contains("MODERATE"));
-    
+
     // Verify new token is generated with updated roles
     verify(tokenProvider).generateAccessToken(any(UUID.class), eq("testuser"), eq("test@example.com"),
         anyList(), anyList());

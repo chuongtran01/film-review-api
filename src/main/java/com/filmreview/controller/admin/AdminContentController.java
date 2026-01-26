@@ -1,10 +1,13 @@
 package com.filmreview.controller.admin;
 
+import com.filmreview.dto.GenreDto;
+import com.filmreview.mapper.GenreDtoMapper;
 import com.filmreview.service.GenreService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,9 +20,11 @@ import java.util.Map;
 public class AdminContentController {
 
   private final GenreService genreService;
+  private final GenreDtoMapper genreDtoMapper;
 
-  public AdminContentController(GenreService genreService) {
+  public AdminContentController(GenreService genreService, GenreDtoMapper genreDtoMapper) {
     this.genreService = genreService;
+    this.genreDtoMapper = genreDtoMapper;
   }
 
   @PostMapping("/movie")
@@ -50,6 +55,17 @@ public class AdminContentController {
     return ResponseEntity.ok(Map.of(
         "message", "Title deleted successfully",
         "titleId", titleId));
+  }
+
+  /**
+   * Get all genres.
+   * Returns a list of all genres in the system.
+   */
+  @GetMapping("/genres")
+  @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+  public ResponseEntity<List<GenreDto>> getGenres() {
+    List<GenreDto> genres = genreDtoMapper.toDtoList(genreService.getAllGenres());
+    return ResponseEntity.ok(genres);
   }
 
   /**

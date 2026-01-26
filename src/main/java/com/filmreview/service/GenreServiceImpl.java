@@ -29,6 +29,11 @@ public class GenreServiceImpl implements GenreService {
   }
 
   @Override
+  public List<Genre> getAllGenres() {
+    return genreRepository.findAll();
+  }
+
+  @Override
   @Transactional
   public int syncMovieGenres() {
     logger.info("Starting movie genres sync from TMDB");
