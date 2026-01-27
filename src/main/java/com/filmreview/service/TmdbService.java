@@ -1,6 +1,7 @@
 package com.filmreview.service;
 
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
+import com.filmreview.dto.tmdb.TmdbLanguageInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
 import org.springframework.data.domain.Page;
@@ -41,6 +42,12 @@ public interface TmdbService {
    * Get official TV series genres list from TMDB.
    */
   List<TmdbGenreInfo> getTvSeriesGenres();
+
+  /**
+   * Get official languages list from TMDB.
+   * Fetches from /configuration/languages endpoint.
+   */
+  List<TmdbLanguageInfo> getLanguages();
 
   /**
    * Get image URL for a given path.

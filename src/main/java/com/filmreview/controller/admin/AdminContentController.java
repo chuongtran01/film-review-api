@@ -1,8 +1,11 @@
 package com.filmreview.controller.admin;
 
 import com.filmreview.dto.GenreDto;
+import com.filmreview.dto.LanguageDto;
 import com.filmreview.mapper.GenreDtoMapper;
+import com.filmreview.mapper.LanguageDtoMapper;
 import com.filmreview.service.GenreService;
+import com.filmreview.service.LanguageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +24,15 @@ public class AdminContentController {
 
   private final GenreService genreService;
   private final GenreDtoMapper genreDtoMapper;
+  private final LanguageService languageService;
+  private final LanguageDtoMapper languageDtoMapper;
 
-  public AdminContentController(GenreService genreService, GenreDtoMapper genreDtoMapper) {
+  public AdminContentController(GenreService genreService, GenreDtoMapper genreDtoMapper,
+      LanguageService languageService, LanguageDtoMapper languageDtoMapper) {
     this.genreService = genreService;
     this.genreDtoMapper = genreDtoMapper;
+    this.languageService = languageService;
+    this.languageDtoMapper = languageDtoMapper;
   }
 
   @PostMapping("/movie")
@@ -82,5 +90,30 @@ public class AdminContentController {
         "message", "Movie and TV series genres synced successfully",
         "movieGenresSynced", movieGenresSynced,
         "tvSeriesGenresSynced", tvSeriesGenresSynced));
+  }
+
+  /**
+   * Get all languages.
+   * Returns a list of all languages in the system.
+   */
+  @GetMapping("/languages")
+  @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR')")
+  public ResponseEntity<List<LanguageDto>> getLanguages() {
+    List<LanguageDto> languages = languageDtoMapper.toDtoList(languageService.getAllLanguages());
+    return ResponseEntity.ok(languages);
+  }
+
+  /**
+   * Sync languages from TMDB.
+   * Fetches official language list and updates the database.
+   */
+  @PostMapping("/languages/sync")
+  @PreAuthorize("hasAnyRole('ADMIN', 'MODERATOR') and hasAuthority('titles.create')")
+  public ResponseEntity<Map<String, Object>> syncLanguages() {
+    int languagesSynced = languageService.syncLanguages();
+
+    return ResponseEntity.ok(Map.of(
+        "message", "Languages synced successfully",
+        "languagesSynced", languagesSynced));
   }
 }

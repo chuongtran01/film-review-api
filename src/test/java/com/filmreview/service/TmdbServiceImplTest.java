@@ -2,18 +2,21 @@ package com.filmreview.service;
 
 import com.filmreview.config.TmdbConfig;
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
+import com.filmreview.dto.tmdb.TmdbLanguageInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
 import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
 import com.filmreview.mapper.TmdbMovieMapper;
 import com.filmreview.mapper.TmdbTvSeriesMapper;
 import info.movito.themoviedbapi.TmdbApi;
+import info.movito.themoviedbapi.TmdbConfiguration;
 import info.movito.themoviedbapi.TmdbGenre;
 import info.movito.themoviedbapi.TmdbMovieLists;
 import info.movito.themoviedbapi.TmdbMovies;
 import info.movito.themoviedbapi.TmdbTvSeries;
 import info.movito.themoviedbapi.TmdbTvSeriesLists;
 import info.movito.themoviedbapi.model.core.Genre;
+import info.movito.themoviedbapi.model.core.Language;
 import info.movito.themoviedbapi.model.core.Movie;
 import info.movito.themoviedbapi.model.core.MovieResultsPage;
 import info.movito.themoviedbapi.model.core.TvSeriesResultsPage;
@@ -67,6 +70,9 @@ class TmdbServiceImplTest {
   @Mock
   private TmdbGenre tmdbGenre;
 
+  @Mock
+  private TmdbConfiguration tmdbConfiguration;
+
   @InjectMocks
   private TmdbServiceImpl tmdbService;
 
@@ -90,6 +96,7 @@ class TmdbServiceImplTest {
     setPrivateField(tmdbService, "tmdbTvSeries", tmdbTvSeries);
     setPrivateField(tmdbService, "tmdbTvSeriesLists", tmdbTvSeriesLists);
     setPrivateField(tmdbService, "tmdbGenre", tmdbGenre);
+    setPrivateField(tmdbService, "tmdbConfiguration", tmdbConfiguration);
   }
 
   private void setPrivateField(Object target, String fieldName, Object value) throws Exception {
@@ -443,11 +450,98 @@ class TmdbServiceImplTest {
     assertNull(result);
   }
 
+  @Test
+  void testGetLanguages_Success() throws Exception {
+    // Arrange
+    Language language1 = mock(Language.class);
+    when(language1.getIso6391()).thenReturn("en");
+    when(language1.getEnglishName()).thenReturn("English");
+    when(language1.getName()).thenReturn("English");
+
+    Language language2 = mock(Language.class);
+    when(language2.getIso6391()).thenReturn("es");
+    when(language2.getEnglishName()).thenReturn("Spanish");
+    when(language2.getName()).thenReturn("Español");
+
+    Language language3 = mock(Language.class);
+    when(language3.getIso6391()).thenReturn("fr");
+    when(language3.getEnglishName()).thenReturn("French");
+    when(language3.getName()).thenReturn("Français");
+
+    when(tmdbConfiguration.getLanguages()).thenReturn(Arrays.asList(language1, language2, language3));
+
+    // Act
+    List<TmdbLanguageInfo> result = tmdbService.getLanguages();
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(3, result.size());
+    assertEquals("en", result.get(0).getIso6391());
+    assertEquals("English", result.get(0).getEnglishName());
+    assertEquals("English", result.get(0).getName());
+    assertEquals("es", result.get(1).getIso6391());
+    assertEquals("Spanish", result.get(1).getEnglishName());
+    assertEquals("Español", result.get(1).getName());
+    assertEquals("fr", result.get(2).getIso6391());
+    assertEquals("French", result.get(2).getEnglishName());
+    assertEquals("Français", result.get(2).getName());
+    verify(tmdbConfiguration).getLanguages();
+  }
+
+  @Test
+  void testGetLanguages_EmptyList() throws Exception {
+    // Arrange
+    when(tmdbConfiguration.getLanguages()).thenReturn(Arrays.asList());
+
+    // Act
+    List<TmdbLanguageInfo> result = tmdbService.getLanguages();
+
+    // Assert
+    assertNotNull(result);
+    assertTrue(result.isEmpty());
+    verify(tmdbConfiguration).getLanguages();
+  }
+
+  @Test
+  void testGetLanguages_WithNullName() throws Exception {
+    // Arrange
+    Language language1 = mock(Language.class);
+    when(language1.getIso6391()).thenReturn("en");
+    when(language1.getEnglishName()).thenReturn("English");
+    when(language1.getName()).thenReturn(null);
+
+    when(tmdbConfiguration.getLanguages()).thenReturn(Arrays.asList(language1));
+
+    // Act
+    List<TmdbLanguageInfo> result = tmdbService.getLanguages();
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.size());
+    assertEquals("en", result.get(0).getIso6391());
+    assertEquals("English", result.get(0).getEnglishName());
+    assertNull(result.get(0).getName());
+    verify(tmdbConfiguration).getLanguages();
+  }
+
+  @Test
+  void testGetLanguages_Exception_ThrowsRuntimeException() throws Exception {
+    // Arrange
+    when(tmdbConfiguration.getLanguages())
+        .thenThrow(new RuntimeException("API error"));
+
+    // Act & Assert
+    RuntimeException exception = assertThrows(RuntimeException.class,
+        () -> tmdbService.getLanguages());
+    assertEquals("Failed to fetch languages from TMDB", exception.getMessage());
+    verify(tmdbConfiguration).getLanguages();
+  }
+
   // Helper methods
   private Movie createMockMovie(Integer id, String title) {
-    Movie movie = mock(Movie.class, withSettings().lenient());
-    when(movie.getId()).thenReturn(id);
-    when(movie.getTitle()).thenReturn(title);
+    Movie movie = mock(Movie.class);
+    lenient().when(movie.getId()).thenReturn(id);
+    lenient().when(movie.getTitle()).thenReturn(title);
     return movie;
   }
 }

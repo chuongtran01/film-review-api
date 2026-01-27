@@ -2,6 +2,7 @@ package com.filmreview.service;
 
 import com.filmreview.config.TmdbConfig;
 import com.filmreview.dto.tmdb.TmdbGenreInfo;
+import com.filmreview.dto.tmdb.TmdbLanguageInfo;
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
 import com.filmreview.dto.tmdb.TmdbPageResponse;
 import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import info.movito.themoviedbapi.TmdbApi;
+import info.movito.themoviedbapi.TmdbConfiguration;
 import info.movito.themoviedbapi.TmdbGenre;
 import info.movito.themoviedbapi.TmdbMovieLists;
 import info.movito.themoviedbapi.TmdbMovies;
@@ -50,6 +52,7 @@ public class TmdbServiceImpl implements TmdbService {
   private final TmdbTvSeries tmdbTvSeries;
   private final TmdbTvSeriesLists tmdbTvSeriesLists;
   private final TmdbGenre tmdbGenre;
+  private final TmdbConfiguration tmdbConfiguration;
   private final TmdbMovieMapper tmdbMovieMapper;
   private final TmdbTvSeriesMapper tmdbTvSeriesMapper;
 
@@ -64,6 +67,7 @@ public class TmdbServiceImpl implements TmdbService {
     this.tmdbTvSeries = tmdbApi.getTvSeries();
     this.tmdbTvSeriesLists = tmdbApi.getTvSeriesLists();
     this.tmdbGenre = tmdbApi.getGenre();
+    this.tmdbConfiguration = tmdbApi.getConfiguration();
   }
 
   @Override
@@ -182,6 +186,19 @@ public class TmdbServiceImpl implements TmdbService {
     } catch (Exception e) {
       logger.error("Error fetching TV series genres from TMDB", e);
       throw new RuntimeException("Failed to fetch TV series genres from TMDB", e);
+    }
+  }
+
+  @Override
+  public List<TmdbLanguageInfo> getLanguages() {
+    try {
+      List<info.movito.themoviedbapi.model.core.Language> languages = tmdbConfiguration.getLanguages();
+      return languages.stream()
+          .map(language -> new TmdbLanguageInfo(language.getIso6391(), language.getEnglishName(), language.getName()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      logger.error("Error fetching languages from TMDB", e);
+      throw new RuntimeException("Failed to fetch languages from TMDB", e);
     }
   }
 

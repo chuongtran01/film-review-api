@@ -233,7 +233,8 @@ class AdminContentControllerTest {
   void testGetGenres_Unauthorized_NoToken() throws Exception {
     // Act & Assert
     mockMvc.perform(get("/api/v1/admin/titles/genres"))
-        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not authenticated
+        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not
+                                               // authenticated
   }
 
   @Test
@@ -283,7 +284,8 @@ class AdminContentControllerTest {
     // Act & Assert
     mockMvc.perform(post("/api/v1/admin/titles/genres/sync")
         .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not authenticated
+        .andExpect(status().isUnauthorized()); // 401 - AuthenticationEntryPoint returns Unauthorized when not
+                                               // authenticated
   }
 
   @Test
