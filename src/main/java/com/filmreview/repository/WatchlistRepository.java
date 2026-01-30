@@ -23,6 +23,12 @@ public interface WatchlistRepository extends JpaRepository<Watchlist, UUID> {
   Page<Watchlist> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
   /**
+   * Find all watchlist items for a specific user filtered by status.
+   */
+  Page<Watchlist> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, Watchlist.WatchlistStatus status,
+      Pageable pageable);
+
+  /**
    * Find a specific watchlist item by user and title.
    */
   Optional<Watchlist> findByUserIdAndTitleId(UUID userId, UUID titleId);

@@ -4,7 +4,6 @@
 -- comment: Create ENUM types
 CREATE TYPE title_type AS ENUM ('movie', 'tv_show');
 CREATE TYPE person_role AS ENUM ('cast', 'director', 'writer', 'producer', 'composer', 'cinematographer', 'editor');
-CREATE TYPE watchlist_status AS ENUM ('want_to_watch', 'watching', 'completed', 'dropped');
 
 -- changeset chuong.tran:2
 -- comment: Create users table
@@ -170,10 +169,19 @@ CREATE TABLE watchlist (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
-    status watchlist_status NOT NULL,
+    status VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, title_id)
+);
+
+-- changeset chuong.tran:13a
+-- comment: Create languages table
+CREATE TABLE languages (
+    iso_639_1 VARCHAR(10) PRIMARY KEY,
+    english_name VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- changeset chuong.tran:14
@@ -307,6 +315,10 @@ CREATE INDEX idx_watchlist_user_id ON watchlist(user_id);
 CREATE INDEX idx_watchlist_title_id ON watchlist(title_id);
 CREATE INDEX idx_watchlist_user_status ON watchlist(user_id, status);
 CREATE INDEX idx_watchlist_user_updated ON watchlist(user_id, updated_at DESC);
+
+-- changeset chuong.tran:29a
+-- comment: Create indexes for languages table
+CREATE INDEX idx_languages_iso_639_1 ON languages(iso_639_1);
 
 -- changeset chuong.tran:30
 -- comment: Create indexes for lists table

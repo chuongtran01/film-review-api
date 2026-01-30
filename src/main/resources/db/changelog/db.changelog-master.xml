@@ -9,6 +9,5 @@
         <include file="db/changelog/changes/V1__Initial_schema.sql" relativeToChangelogFile="false"/>
         <include file="db/changelog/changes/V2__Trigger_functions.xml" relativeToChangelogFile="false"/>
         <include file="db/changelog/changes/V3__Add_role_based_permissions.sql" relativeToChangelogFile="false"/>
-        <include file="db/changelog/changes/V4__Create_languages_table.sql" relativeToChangelogFile="false"/>
 
     </databaseChangeLog>
