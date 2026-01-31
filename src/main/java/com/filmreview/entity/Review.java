@@ -1,6 +1,7 @@
 package com.filmreview.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -12,9 +13,10 @@ import java.util.UUID;
  * Reviews can optionally link to a rating.
  */
 @Entity
-@Table(name = "reviews", uniqueConstraints = {
-    @UniqueConstraint(columnNames = { "user_id", "title_id" })
-})
+@Table(name = "reviews")
+// Note: Unique constraint is enforced via partial unique index
+// (idx_reviews_user_title_unique)
+// which excludes soft-deleted records (WHERE deleted_at IS NULL)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -32,6 +34,10 @@ public class Review extends BaseEntity {
 
   @Column(name = "rating_id")
   private UUID ratingId; // Optional link to rating
+
+  @Size(min = 1, max = 200)
+  @Column(name = "title", nullable = false, length = 200)
+  private String title;
 
   @Column(name = "content", columnDefinition = "TEXT", nullable = false)
   private String content;

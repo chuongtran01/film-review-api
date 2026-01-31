@@ -144,14 +144,21 @@ CREATE TABLE reviews (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title_id UUID NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
     rating_id UUID REFERENCES ratings(id) ON DELETE SET NULL,
+    title VARCHAR(200) NOT NULL,
     content TEXT NOT NULL,
     contains_spoilers BOOLEAN DEFAULT FALSE,
     helpful_count INTEGER DEFAULT 0,
     deleted_at TIMESTAMP WITH TIME ZONE NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(user_id, title_id)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- changeset chuong.tran:11a
+-- comment: Create partial unique index for reviews (excludes soft-deleted records)
+-- This allows users to create a new review after soft-deleting the previous one
+CREATE UNIQUE INDEX idx_reviews_user_title_unique 
+ON reviews(user_id, title_id) 
+WHERE deleted_at IS NULL;
 
 -- changeset chuong.tran:12
 -- comment: Create review_helpful table

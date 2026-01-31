@@ -28,13 +28,26 @@ public class ReviewFaker {
       "Not my cup of tea. Found it boring and predictable, but I can see why others might enjoy it."
   };
 
+  private static final String[] REVIEW_TITLES = {
+      "A Masterpiece of Modern Cinema",
+      "Solid Entertainment with Great Performances",
+      "One of the Best Films This Year",
+      "Interesting Concept, Mixed Execution",
+      "Outstanding Direction and Acting",
+      "Disappointing Despite High Expectations",
+      "Emotionally Powerful and Well-Crafted",
+      "Good Film with Minor Pacing Issues",
+      "Brilliant Storytelling with Surprising Twists",
+      "Not My Favorite, But Decent"
+  };
+
   /**
    * Generate a Review with all random values.
    *
    * @return Review instance with random values
    */
   public static Review generate() {
-    return generate(null, null, null, null, null, null, null, null, null, null);
+    return generate(null, null, null, null, null, null, null, null, null, null, null);
   }
 
   /**
@@ -45,7 +58,7 @@ public class ReviewFaker {
    * @return Review instance
    */
   public static Review generate(UUID userId, UUID titleId) {
-    return generate(null, userId, titleId, null, null, null, null, null, null, null);
+    return generate(null, userId, titleId, null, null, null, null, null, null, null, null);
   }
 
   /**
@@ -58,7 +71,7 @@ public class ReviewFaker {
    * @return Review instance
    */
   public static Review generate(UUID userId, UUID titleId, String content) {
-    return generate(null, userId, titleId, null, content, null, null, null, null, null);
+    return generate(null, userId, titleId, null, null, content, null, null, null, null, null);
   }
 
   /**
@@ -69,6 +82,7 @@ public class ReviewFaker {
    * @param userId           User ID (null for random UUID)
    * @param titleId          Title ID (null for random UUID)
    * @param ratingId         Rating ID (null for random UUID or null)
+   * @param title            Review title/headline (null for random)
    * @param content          Review content (null for random)
    * @param containsSpoilers Whether review contains spoilers (null defaults to
    *                         false)
@@ -83,6 +97,7 @@ public class ReviewFaker {
       UUID userId,
       UUID titleId,
       UUID ratingId,
+      String title,
       String content,
       Boolean containsSpoilers,
       Integer helpfulCount,
@@ -97,6 +112,7 @@ public class ReviewFaker {
     review.setTitleId(titleId != null ? titleId : UUID.randomUUID());
     review.setRatingId(
         ratingId != null ? ratingId : (secureRandom.nextBoolean() ? UUID.randomUUID() : null));
+    review.setTitle(title != null ? title : generateRandomTitle());
     review.setContent(content != null ? content : generateRandomContent());
     review.setContainsSpoilers(containsSpoilers != null ? containsSpoilers : false);
     review.setHelpfulCount(helpfulCount != null ? helpfulCount : 0);
@@ -105,6 +121,15 @@ public class ReviewFaker {
     review.setUpdatedAt(updatedAt != null ? updatedAt : LocalDateTime.now());
 
     return review;
+  }
+
+  /**
+   * Generate random review title.
+   *
+   * @return Random review title
+   */
+  private static String generateRandomTitle() {
+    return REVIEW_TITLES[secureRandom.nextInt(0, REVIEW_TITLES.length)];
   }
 
   /**

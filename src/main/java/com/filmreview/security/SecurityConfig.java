@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -60,6 +61,8 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/auth/**").permitAll()
             .requestMatchers("/api/v1/titles/**").permitAll() // Public access to titles
             .requestMatchers("/api/v1/ratings/titles/**").permitAll() // Public access to title ratings
+            .requestMatchers(HttpMethod.GET, "/api/v1/reviews/{id}").permitAll() // Public access to get review by ID
+            .requestMatchers(HttpMethod.GET, "/api/v1/reviews/titles/**").permitAll() // Public access to title reviews
             .requestMatchers("/api/v1/users/{username}").permitAll() // Public access to user profiles by username
             .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
             // Admin endpoints require ADMIN or MODERATOR role
