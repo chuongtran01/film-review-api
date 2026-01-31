@@ -86,6 +86,8 @@ class WatchlistServiceImplTest {
 
     when(watchlistRepository.findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable))
         .thenReturn(watchlistPage);
+    when(titleRepository.findAllById(Arrays.asList(titleId))).thenReturn(Arrays.asList(testTitle));
+    when(titleDtoMapper.toDto(testTitle)).thenReturn(testTitleDto);
 
     // Act
     Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, status, pageable);
@@ -96,8 +98,11 @@ class WatchlistServiceImplTest {
     assertEquals(userId, result.getContent().get(0).getUserId());
     assertEquals(titleId, result.getContent().get(0).getTitleId());
     assertEquals(Watchlist.WatchlistStatus.WANT_TO_WATCH, result.getContent().get(0).getStatus());
+    assertNotNull(result.getContent().get(0).getTitle());
     verify(watchlistRepository).findByUserIdAndStatusOrderByCreatedAtDesc(userId, status, pageable);
     verify(watchlistRepository, never()).findByUserIdOrderByCreatedAtDesc(any(), any());
+    verify(titleRepository).findAllById(Arrays.asList(titleId));
+    verify(titleDtoMapper).toDto(testTitle);
   }
 
   @Test
@@ -108,6 +113,8 @@ class WatchlistServiceImplTest {
 
     when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
         .thenReturn(watchlistPage);
+    when(titleRepository.findAllById(Arrays.asList(titleId))).thenReturn(Arrays.asList(testTitle));
+    when(titleDtoMapper.toDto(testTitle)).thenReturn(testTitleDto);
 
     // Act
     Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
@@ -115,8 +122,11 @@ class WatchlistServiceImplTest {
     // Assert
     assertNotNull(result);
     assertEquals(1, result.getContent().size());
+    assertNotNull(result.getContent().get(0).getTitle());
     verify(watchlistRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
     verify(watchlistRepository, never()).findByUserIdAndStatusOrderByCreatedAtDesc(any(), any(), any());
+    verify(titleRepository).findAllById(Arrays.asList(titleId));
+    verify(titleDtoMapper).toDto(testTitle);
   }
 
   @Test
@@ -127,6 +137,7 @@ class WatchlistServiceImplTest {
 
     when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
         .thenReturn(emptyPage);
+    when(titleRepository.findAllById(Collections.emptyList())).thenReturn(Collections.emptyList());
 
     // Act
     Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
@@ -136,6 +147,7 @@ class WatchlistServiceImplTest {
     assertTrue(result.getContent().isEmpty());
     assertEquals(0, result.getTotalElements());
     verify(watchlistRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
+    verify(titleRepository).findAllById(Collections.emptyList());
   }
 
   @Test
@@ -364,23 +376,50 @@ class WatchlistServiceImplTest {
   @Test
   void testGetUserWatchlist_WithDifferentStatuses() {
     // Arrange
+    UUID titleId1 = UUID.randomUUID();
+    UUID titleId2 = UUID.randomUUID();
+
     Watchlist watchlist1 = new Watchlist();
     watchlist1.setId(UUID.randomUUID());
     watchlist1.setUserId(userId);
-    watchlist1.setTitleId(UUID.randomUUID());
+    watchlist1.setTitleId(titleId1);
     watchlist1.setStatus(Watchlist.WatchlistStatus.WANT_TO_WATCH);
 
     Watchlist watchlist2 = new Watchlist();
     watchlist2.setId(UUID.randomUUID());
     watchlist2.setUserId(userId);
-    watchlist2.setTitleId(UUID.randomUUID());
+    watchlist2.setTitleId(titleId2);
     watchlist2.setStatus(Watchlist.WatchlistStatus.WATCHING);
+
+    Title title1 = new Title();
+    title1.setId(titleId1);
+    title1.setTitle("Movie 1");
+    title1.setTmdbId(1001);
+    title1.setType(Title.TitleType.movie);
+
+    Title title2 = new Title();
+    title2.setId(titleId2);
+    title2.setTitle("Movie 2");
+    title2.setTmdbId(1002);
+    title2.setType(Title.TitleType.movie);
+
+    TitleDto titleDto1 = new TitleDto();
+    titleDto1.setId(titleId1);
+    titleDto1.setTitle("Movie 1");
+
+    TitleDto titleDto2 = new TitleDto();
+    titleDto2.setId(titleId2);
+    titleDto2.setTitle("Movie 2");
 
     Pageable pageable = PageRequest.of(0, 20);
     Page<Watchlist> watchlistPage = new PageImpl<>(Arrays.asList(watchlist1, watchlist2), pageable, 2);
 
     when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
         .thenReturn(watchlistPage);
+    when(titleRepository.findAllById(Arrays.asList(titleId1, titleId2)))
+        .thenReturn(Arrays.asList(title1, title2));
+    when(titleDtoMapper.toDto(title1)).thenReturn(titleDto1);
+    when(titleDtoMapper.toDto(title2)).thenReturn(titleDto2);
 
     // Act
     Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
@@ -388,7 +427,12 @@ class WatchlistServiceImplTest {
     // Assert
     assertNotNull(result);
     assertEquals(2, result.getContent().size());
+    assertNotNull(result.getContent().get(0).getTitle());
+    assertNotNull(result.getContent().get(1).getTitle());
     verify(watchlistRepository).findByUserIdOrderByCreatedAtDesc(userId, pageable);
+    verify(titleRepository).findAllById(Arrays.asList(titleId1, titleId2));
+    verify(titleDtoMapper).toDto(title1);
+    verify(titleDtoMapper).toDto(title2);
   }
 
   @Test
@@ -424,5 +468,196 @@ class WatchlistServiceImplTest {
       assertNotNull(result);
       assertEquals(status, result.getStatus());
     }
+  }
+
+  @Test
+  void testGetUserWatchlist_BatchFetchesTitles() {
+    // Arrange - Multiple watchlist items with different titles
+    UUID titleId1 = UUID.randomUUID();
+    UUID titleId2 = UUID.randomUUID();
+    UUID titleId3 = UUID.randomUUID();
+
+    Watchlist watchlist1 = new Watchlist();
+    watchlist1.setId(UUID.randomUUID());
+    watchlist1.setUserId(userId);
+    watchlist1.setTitleId(titleId1);
+    watchlist1.setStatus(Watchlist.WatchlistStatus.WANT_TO_WATCH);
+
+    Watchlist watchlist2 = new Watchlist();
+    watchlist2.setId(UUID.randomUUID());
+    watchlist2.setUserId(userId);
+    watchlist2.setTitleId(titleId2);
+    watchlist2.setStatus(Watchlist.WatchlistStatus.WATCHING);
+
+    Watchlist watchlist3 = new Watchlist();
+    watchlist3.setId(UUID.randomUUID());
+    watchlist3.setUserId(userId);
+    watchlist3.setTitleId(titleId3);
+    watchlist3.setStatus(Watchlist.WatchlistStatus.COMPLETED);
+
+    Title title1 = new Title();
+    title1.setId(titleId1);
+    title1.setTitle("Movie 1");
+    title1.setTmdbId(1001);
+    title1.setType(Title.TitleType.movie);
+
+    Title title2 = new Title();
+    title2.setId(titleId2);
+    title2.setTitle("Movie 2");
+    title2.setTmdbId(1002);
+    title2.setType(Title.TitleType.movie);
+
+    Title title3 = new Title();
+    title3.setId(titleId3);
+    title3.setTitle("Movie 3");
+    title3.setTmdbId(1003);
+    title3.setType(Title.TitleType.movie);
+
+    TitleDto titleDto1 = new TitleDto();
+    titleDto1.setId(titleId1);
+    titleDto1.setTitle("Movie 1");
+
+    TitleDto titleDto2 = new TitleDto();
+    titleDto2.setId(titleId2);
+    titleDto2.setTitle("Movie 2");
+
+    TitleDto titleDto3 = new TitleDto();
+    titleDto3.setId(titleId3);
+    titleDto3.setTitle("Movie 3");
+
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Watchlist> watchlistPage = new PageImpl<>(
+        Arrays.asList(watchlist1, watchlist2, watchlist3), pageable, 3);
+
+    when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
+        .thenReturn(watchlistPage);
+    when(titleRepository.findAllById(Arrays.asList(titleId1, titleId2, titleId3)))
+        .thenReturn(Arrays.asList(title1, title2, title3));
+    when(titleDtoMapper.toDto(title1)).thenReturn(titleDto1);
+    when(titleDtoMapper.toDto(title2)).thenReturn(titleDto2);
+    when(titleDtoMapper.toDto(title3)).thenReturn(titleDto3);
+
+    // Act
+    Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(3, result.getContent().size());
+    // Verify all responses have titles
+    assertNotNull(result.getContent().get(0).getTitle());
+    assertNotNull(result.getContent().get(1).getTitle());
+    assertNotNull(result.getContent().get(2).getTitle());
+    // Verify batch fetch was called once with all title IDs
+    verify(titleRepository, times(1)).findAllById(Arrays.asList(titleId1, titleId2, titleId3));
+    verify(titleDtoMapper).toDto(title1);
+    verify(titleDtoMapper).toDto(title2);
+    verify(titleDtoMapper).toDto(title3);
+  }
+
+  @Test
+  void testGetUserWatchlist_MissingTitleInMap() {
+    // Arrange - Title not found in repository (edge case)
+    UUID missingTitleId = UUID.randomUUID();
+
+    Watchlist watchlist = new Watchlist();
+    watchlist.setId(UUID.randomUUID());
+    watchlist.setUserId(userId);
+    watchlist.setTitleId(missingTitleId);
+    watchlist.setStatus(Watchlist.WatchlistStatus.WANT_TO_WATCH);
+
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Watchlist> watchlistPage = new PageImpl<>(Arrays.asList(watchlist), pageable, 1);
+
+    when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
+        .thenReturn(watchlistPage);
+    when(titleRepository.findAllById(Arrays.asList(missingTitleId)))
+        .thenReturn(Collections.emptyList()); // Title not found
+
+    // Act
+    Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getContent().size());
+    assertEquals(userId, result.getContent().get(0).getUserId());
+    assertEquals(missingTitleId, result.getContent().get(0).getTitleId());
+    // Title should be null when not found in map
+    assertNull(result.getContent().get(0).getTitle());
+    verify(titleRepository).findAllById(Arrays.asList(missingTitleId));
+    verify(titleDtoMapper, never()).toDto(any());
+  }
+
+  @Test
+  void testGetUserWatchlist_PartialTitleFetch() {
+    // Arrange - Some titles found, some missing
+    UUID titleId1 = UUID.randomUUID();
+    UUID titleId2 = UUID.randomUUID();
+    UUID missingTitleId = UUID.randomUUID();
+
+    Watchlist watchlist1 = new Watchlist();
+    watchlist1.setId(UUID.randomUUID());
+    watchlist1.setUserId(userId);
+    watchlist1.setTitleId(titleId1);
+    watchlist1.setStatus(Watchlist.WatchlistStatus.WANT_TO_WATCH);
+
+    Watchlist watchlist2 = new Watchlist();
+    watchlist2.setId(UUID.randomUUID());
+    watchlist2.setUserId(userId);
+    watchlist2.setTitleId(missingTitleId);
+    watchlist2.setStatus(Watchlist.WatchlistStatus.WATCHING);
+
+    Watchlist watchlist3 = new Watchlist();
+    watchlist3.setId(UUID.randomUUID());
+    watchlist3.setUserId(userId);
+    watchlist3.setTitleId(titleId2);
+    watchlist3.setStatus(Watchlist.WatchlistStatus.COMPLETED);
+
+    Title title1 = new Title();
+    title1.setId(titleId1);
+    title1.setTitle("Movie 1");
+    title1.setTmdbId(1001);
+    title1.setType(Title.TitleType.movie);
+
+    Title title2 = new Title();
+    title2.setId(titleId2);
+    title2.setTitle("Movie 2");
+    title2.setTmdbId(1002);
+    title2.setType(Title.TitleType.movie);
+
+    TitleDto titleDto1 = new TitleDto();
+    titleDto1.setId(titleId1);
+    titleDto1.setTitle("Movie 1");
+
+    TitleDto titleDto2 = new TitleDto();
+    titleDto2.setId(titleId2);
+    titleDto2.setTitle("Movie 2");
+
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Watchlist> watchlistPage = new PageImpl<>(
+        Arrays.asList(watchlist1, watchlist2, watchlist3), pageable, 3);
+
+    when(watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable))
+        .thenReturn(watchlistPage);
+    // Only title1 and title2 are found, missingTitleId is not
+    when(titleRepository.findAllById(Arrays.asList(titleId1, missingTitleId, titleId2)))
+        .thenReturn(Arrays.asList(title1, title2));
+    when(titleDtoMapper.toDto(title1)).thenReturn(titleDto1);
+    when(titleDtoMapper.toDto(title2)).thenReturn(titleDto2);
+
+    // Act
+    Page<WatchlistResponse> result = watchlistService.getUserWatchlist(userId, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(3, result.getContent().size());
+    // First item has title
+    assertNotNull(result.getContent().get(0).getTitle());
+    assertEquals("Movie 1", result.getContent().get(0).getTitle().getTitle());
+    // Second item (missing title) should not have title
+    assertNull(result.getContent().get(1).getTitle());
+    // Third item has title
+    assertNotNull(result.getContent().get(2).getTitle());
+    assertEquals("Movie 2", result.getContent().get(2).getTitle().getTitle());
+    verify(titleRepository).findAllById(Arrays.asList(titleId1, missingTitleId, titleId2));
   }
 }

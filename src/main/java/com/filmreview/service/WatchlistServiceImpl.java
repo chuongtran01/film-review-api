@@ -14,8 +14,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class WatchlistServiceImpl implements WatchlistService {
@@ -47,7 +50,25 @@ public class WatchlistServiceImpl implements WatchlistService {
       watchlistItems = watchlistRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
     }
 
-    return watchlistItems.map(this::mapToResponse);
+    // Fetch all titles for the watchlist items in one query to avoid N+1 problem
+    List<UUID> titleIds = watchlistItems.getContent().stream()
+        .map(Watchlist::getTitleId)
+        .toList();
+
+    Map<UUID, Title> titleMap = titleRepository.findAllById(titleIds).stream()
+        .collect(Collectors.toMap(Title::getId, title -> title));
+
+    // Map watchlist items to responses with titles
+    return watchlistItems.map(watchlist -> {
+      Title title = titleMap.get(watchlist.getTitleId());
+      // If title is not found, still return response but without title (shouldn't
+      // happen normally)
+      if (title != null) {
+        return mapToResponse(watchlist, title);
+      } else {
+        return mapToResponse(watchlist);
+      }
+    });
   }
 
   @Override
