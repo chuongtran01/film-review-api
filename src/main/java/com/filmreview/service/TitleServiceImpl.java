@@ -212,13 +212,15 @@ public class TitleServiceImpl implements TitleService {
     if (endIndex > allTitles.size() && tmdbMovies.hasNext()) {
       // Fetch next TMDB page to get more items
       Page<TmdbPageResponse.TmdbMovieItem> nextTmdbPage = tmdbService.getPopularMovies(language, tmdbPage + 1, region);
-      List<Title> nextPageTitles = nextTmdbPage.getContent().stream()
-          .map(tmdbMovie -> {
-            return titleRepository.findByTmdbId(tmdbMovie.getId())
-                .orElseGet(() -> tmdbMovieItemToTitle(tmdbMovie));
-          })
-          .collect(Collectors.toList());
-      allTitles.addAll(nextPageTitles);
+      if (nextTmdbPage != null && nextTmdbPage.getContent() != null) {
+        List<Title> nextPageTitles = nextTmdbPage.getContent().stream()
+            .map(tmdbMovie -> {
+              return titleRepository.findByTmdbId(tmdbMovie.getId())
+                  .orElseGet(() -> tmdbMovieItemToTitle(tmdbMovie));
+            })
+            .collect(Collectors.toList());
+        allTitles.addAll(nextPageTitles);
+      }
     }
 
     // Slice to the requested page size
@@ -318,13 +320,15 @@ public class TitleServiceImpl implements TitleService {
     if (endIndex > allTitles.size() && tmdbTVShows.hasNext()) {
       // Fetch next TMDB page to get more items
       Page<TmdbPageResponse.TmdbTvSeriesItem> nextTmdbPage = tmdbService.getPopularTVShows(language, tmdbPage + 1);
-      List<Title> nextPageTitles = nextTmdbPage.getContent().stream()
-          .map(tmdbTV -> {
-            return titleRepository.findByTmdbId(tmdbTV.getId())
-                .orElseGet(() -> tmdbTVItemToTitle(tmdbTV));
-          })
-          .collect(Collectors.toList());
-      allTitles.addAll(nextPageTitles);
+      if (nextTmdbPage != null && nextTmdbPage.getContent() != null) {
+        List<Title> nextPageTitles = nextTmdbPage.getContent().stream()
+            .map(tmdbTV -> {
+              return titleRepository.findByTmdbId(tmdbTV.getId())
+                  .orElseGet(() -> tmdbTVItemToTitle(tmdbTV));
+            })
+            .collect(Collectors.toList());
+        allTitles.addAll(nextPageTitles);
+      }
     }
 
     // Slice to the requested page size
@@ -393,5 +397,29 @@ public class TitleServiceImpl implements TitleService {
     // via getTitleByTmdbId() which calls fetchAndSaveMovie()
 
     return title;
+  }
+
+  @Override
+  public Page<Title> searchTitles(String query, String type, Pageable pageable) {
+    if (query == null || query.trim().isEmpty()) {
+      return new PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
+    }
+
+    // Convert type string to TitleType enum if provided
+    TitleType titleType = null;
+    if (type != null) {
+      if ("movie".equals(type)) {
+        titleType = TitleType.movie;
+      } else if ("tv_show".equals(type)) {
+        titleType = TitleType.tv_show;
+      }
+    }
+
+    // Search with or without type filter
+    if (titleType != null) {
+      return titleRepository.searchTitlesByType(query.trim(), titleType, pageable);
+    } else {
+      return titleRepository.searchTitles(query.trim(), pageable);
+    }
   }
 }

@@ -17,8 +17,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,9 +65,9 @@ class TitleControllerTest {
   @Test
   void testGetTitles_PopularMovies() {
     // Arrange
-    Page<Title> moviePage = new PageImpl<>(List.of(testMovie), pageable, 1);
+    Page<Title> moviePage = new PageImpl<>(Arrays.asList(testMovie), pageable, 1);
     TitleDto movieDTO = createTitleDto(testMovie);
-    Page<TitleDto> dtoPage = new PageImpl<>(List.of(movieDTO), pageable, 1);
+    Page<TitleDto> dtoPage = new PageImpl<>(Arrays.asList(movieDTO), pageable, 1);
 
     when(titleService.getPopularMovies(anyString(), anyInt(), anyString(), any(Pageable.class)))
         .thenReturn(moviePage);
@@ -91,9 +91,9 @@ class TitleControllerTest {
   @Test
   void testGetTitles_PopularTVShows() {
     // Arrange
-    Page<Title> tvPage = new PageImpl<>(List.of(testTVShow), pageable, 1);
+    Page<Title> tvPage = new PageImpl<>(Arrays.asList(testTVShow), pageable, 1);
     TitleDto tvDTO = createTitleDto(testTVShow);
-    Page<TitleDto> dtoPage = new PageImpl<>(List.of(tvDTO), pageable, 1);
+    Page<TitleDto> dtoPage = new PageImpl<>(Arrays.asList(tvDTO), pageable, 1);
 
     when(titleService.getPopularTVShows(anyString(), anyInt(), any(Pageable.class)))
         .thenReturn(tvPage);
@@ -163,9 +163,9 @@ class TitleControllerTest {
   @Test
   void testGetTitles_Pagination() {
     // Arrange
-    Page<Title> moviePage = new PageImpl<>(List.of(testMovie), PageRequest.of(1, 10), 25);
+    Page<Title> moviePage = new PageImpl<>(Arrays.asList(testMovie), PageRequest.of(1, 10), 25);
     TitleDto movieDTO = createTitleDto(testMovie);
-    Page<TitleDto> dtoPage = new PageImpl<>(List.of(movieDTO), PageRequest.of(1, 10), 25);
+    Page<TitleDto> dtoPage = new PageImpl<>(Arrays.asList(movieDTO), PageRequest.of(1, 10), 25);
 
     when(titleService.getPopularMovies(anyString(), anyInt(), anyString(), any(Pageable.class)))
         .thenReturn(moviePage);
@@ -281,6 +281,107 @@ class TitleControllerTest {
     assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     verify(titleService).getTitleBySlug("non-existent-slug");
     verify(titleDtoMapper, never()).toDto(any());
+  }
+
+  // ========== Search Tests ==========
+
+  @Test
+  void testGetTitles_WithSearchQuery() {
+    // Arrange
+    String query = "matrix";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> searchPage = new PageImpl<>(Arrays.asList(testMovie), pageable, 1);
+    TitleDto movieDTO = createTitleDto(testMovie);
+    Page<TitleDto> dtoPage = new PageImpl<>(Arrays.asList(movieDTO), pageable, 1);
+
+    when(titleService.searchTitles(query, null, pageable)).thenReturn(searchPage);
+    when(titleDtoMapper.toDtoPage(searchPage)).thenReturn(dtoPage);
+
+    // Act
+    ResponseEntity<Page<TitleDto>> response = titleController.getTitles(
+        query, null, null, null, null, 1, 20, null);
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(1, response.getBody().getTotalElements());
+    assertEquals("The Matrix", response.getBody().getContent().get(0).getTitle());
+    verify(titleService).searchTitles(query, null, pageable);
+    verify(titleService, never()).getPopularMovies(anyString(), anyInt(), anyString(), any(Pageable.class));
+    verify(titleService, never()).getPopularTVShows(anyString(), anyInt(), any(Pageable.class));
+    verify(titleDtoMapper).toDtoPage(searchPage);
+  }
+
+  @Test
+  void testGetTitles_WithSearchQueryAndType() {
+    // Arrange
+    String query = "breaking";
+    String type = "tv_show";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> searchPage = new PageImpl<>(Arrays.asList(testTVShow), pageable, 1);
+    TitleDto tvDTO = createTitleDto(testTVShow);
+    Page<TitleDto> dtoPage = new PageImpl<>(Arrays.asList(tvDTO), pageable, 1);
+
+    when(titleService.searchTitles(query, type, pageable)).thenReturn(searchPage);
+    when(titleDtoMapper.toDtoPage(searchPage)).thenReturn(dtoPage);
+
+    // Act
+    ResponseEntity<Page<TitleDto>> response = titleController.getTitles(
+        query, type, null, null, null, 1, 20, null);
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(1, response.getBody().getTotalElements());
+    assertEquals("Breaking Bad", response.getBody().getContent().get(0).getTitle());
+    verify(titleService).searchTitles(query, type, pageable);
+  }
+
+  @Test
+  void testGetTitles_WithEmptySearchQuery() {
+    // Arrange
+    String query = "";
+
+    // Act - Empty query should not call searchTitles, should return empty page
+    ResponseEntity<Page<TitleDto>> response = titleController.getTitles(
+        query, null, null, null, null, 1, 20, null);
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(0, response.getBody().getTotalElements());
+    verify(titleService, never()).searchTitles(anyString(), anyString(), any(Pageable.class));
+  }
+
+  @Test
+  void testGetTitles_WithWhitespaceSearchQuery() {
+    // Arrange
+    String query = "   ";
+
+    // Act - Whitespace query should not call searchTitles, should return empty page
+    ResponseEntity<Page<TitleDto>> response = titleController.getTitles(
+        query, null, null, null, null, 1, 20, null);
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(0, response.getBody().getTotalElements());
+    verify(titleService, never()).searchTitles(anyString(), anyString(), any(Pageable.class));
+  }
+
+  @Test
+  void testGetTitles_NoQueryNoSort_ReturnsEmpty() {
+    // Act
+    ResponseEntity<Page<TitleDto>> response = titleController.getTitles(
+        null, null, null, null, null, 1, 20, null);
+
+    // Assert
+    assertEquals(HttpStatus.OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(0, response.getBody().getTotalElements());
+    verify(titleService, never()).searchTitles(anyString(), anyString(), any(Pageable.class));
+    verify(titleService, never()).getPopularMovies(anyString(), anyInt(), anyString(), any(Pageable.class));
+    verify(titleService, never()).getPopularTVShows(anyString(), anyInt(), any(Pageable.class));
   }
 
   /**

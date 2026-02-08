@@ -44,8 +44,8 @@ class RatingRepositoryTest {
 
   @BeforeEach
   void setUp() {
-    ratingRepository.deleteAll();
-    userRepository.deleteAll();
+    ratingRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
     jdbcTemplate.update("DELETE FROM titles");
 
     // Create test user

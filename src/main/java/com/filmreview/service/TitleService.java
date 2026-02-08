@@ -54,4 +54,15 @@ public interface TitleService {
    * DB.
    */
   Page<Title> getPopularTVShows(String language, int page, Pageable pageable);
+
+  /**
+   * Search titles by query string.
+   * Searches in title and originalTitle fields (case-insensitive).
+   * 
+   * @param query    The search query
+   * @param type     Optional type filter (movie or tv_show)
+   * @param pageable Pagination parameters
+   * @return Page of matching titles
+   */
+  Page<Title> searchTitles(String query, String type, Pageable pageable);
 }

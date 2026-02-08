@@ -46,9 +46,17 @@ public class TitleController {
       @RequestParam(required = false, defaultValue = "20") int pageSize,
       @RequestParam(required = false) String sort) {
 
+    Pageable pageable = PageRequest.of(page - 1, pageSize); // Convert to 0-indexed
+
+    // If search query is provided, perform search
+    if (q != null && !q.trim().isEmpty()) {
+      Page<Title> titlesPage = titleService.searchTitles(q, type, pageable);
+      Page<TitleDto> dtoPage = titleDtoMapper.toDtoPage(titlesPage);
+      return ResponseEntity.ok(dtoPage);
+    }
+
     // If sort is "popular", use TMDB getPopularMovies or getPopularTVShows
     if ("popular".equals(sort)) {
-      Pageable pageable = PageRequest.of(page - 1, pageSize); // Convert to 0-indexed
       if ("movie".equals(type)) {
         Page<Title> titlesPage = titleService.getPopularMovies(DEFAULT_LANGUAGE, page, DEFAULT_REGION, pageable);
         Page<TitleDto> dtoPage = titleDtoMapper.toDtoPage(titlesPage);
@@ -62,7 +70,6 @@ public class TitleController {
 
     // TODO: Implement other sort options and filtering
     // For now, return empty page for other cases
-    Pageable pageable = PageRequest.of(page - 1, pageSize);
     Page<TitleDto> emptyPage = new PageImpl<>(java.util.Collections.emptyList(), pageable, 0);
     return ResponseEntity.ok(emptyPage);
   }

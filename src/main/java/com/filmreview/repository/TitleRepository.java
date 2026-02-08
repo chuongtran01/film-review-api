@@ -41,4 +41,27 @@ public interface TitleRepository extends JpaRepository<Title, UUID> {
    */
   @Query("SELECT t FROM Title t WHERE t.type = :type AND t.userRatingAvg IS NOT NULL ORDER BY t.userRatingAvg DESC")
   java.util.List<Title> findByTypeOrderByUserRatingAvgDesc(@Param("type") Title.TitleType type);
+
+  /**
+   * Search titles by query string (searches in title and originalTitle).
+   * Case-insensitive partial match.
+   */
+  @Query("SELECT t FROM Title t WHERE " +
+      "LOWER(t.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+      "LOWER(t.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
+  org.springframework.data.domain.Page<Title> searchTitles(
+      @Param("query") String query,
+      org.springframework.data.domain.Pageable pageable);
+
+  /**
+   * Search titles by query string and type.
+   * Case-insensitive partial match.
+   */
+  @Query("SELECT t FROM Title t WHERE t.type = :type AND " +
+      "(LOWER(t.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+      "LOWER(t.originalTitle) LIKE LOWER(CONCAT('%', :query, '%')))")
+  org.springframework.data.domain.Page<Title> searchTitlesByType(
+      @Param("query") String query,
+      @Param("type") Title.TitleType type,
+      org.springframework.data.domain.Pageable pageable);
 }

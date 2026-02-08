@@ -1,6 +1,7 @@
 package com.filmreview.service;
 
 import com.filmreview.dto.tmdb.TmdbMovieResponse;
+import com.filmreview.dto.tmdb.TmdbPageResponse;
 import com.filmreview.dto.tmdb.TmdbTvSeriesResponse;
 import com.filmreview.entity.Genre;
 import com.filmreview.entity.Title;
@@ -17,9 +18,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -288,7 +294,495 @@ class TitleServiceImplTest {
     verify(titleGenreRepository, never()).save(any(TitleGenre.class));
   }
 
+  // ========== getTitleById Tests ==========
+
+  @Test
+  void testGetTitleById_Success() {
+    // Arrange
+    when(titleRepository.findById(testMovieId)).thenReturn(Optional.of(testMovie));
+
+    // Act
+    Title result = titleService.getTitleById(testMovieId);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(testMovieId, result.getId());
+    assertEquals("The Matrix", result.getTitle());
+    verify(titleRepository).findById(testMovieId);
+  }
+
+  @Test
+  void testGetTitleById_NotFound() {
+    // Arrange
+    UUID nonExistentId = UUID.randomUUID();
+    when(titleRepository.findById(nonExistentId)).thenReturn(Optional.empty());
+
+    // Act & Assert
+    NotFoundException exception = assertThrows(NotFoundException.class,
+        () -> titleService.getTitleById(nonExistentId));
+    assertEquals("Title not found with id: " + nonExistentId, exception.getMessage());
+    verify(titleRepository).findById(nonExistentId);
+  }
+
+  // ========== getTitleBySlug Tests ==========
+
+  @Test
+  void testGetTitleBySlug_Success() {
+    // Arrange
+    String slug = "the-matrix-1999";
+    testMovie.setSlug(slug);
+    when(titleRepository.findBySlug(slug)).thenReturn(Optional.of(testMovie));
+
+    // Act
+    Title result = titleService.getTitleBySlug(slug);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(slug, result.getSlug());
+    assertEquals("The Matrix", result.getTitle());
+    verify(titleRepository).findBySlug(slug);
+  }
+
+  @Test
+  void testGetTitleBySlug_NotFound() {
+    // Arrange
+    String nonExistentSlug = "non-existent-slug";
+    when(titleRepository.findBySlug(nonExistentSlug)).thenReturn(Optional.empty());
+
+    // Act & Assert
+    NotFoundException exception = assertThrows(NotFoundException.class,
+        () -> titleService.getTitleBySlug(nonExistentSlug));
+    assertEquals("Title not found with slug: " + nonExistentSlug, exception.getMessage());
+    verify(titleRepository).findBySlug(nonExistentSlug);
+  }
+
+  // ========== fetchAndSaveMovie Tests ==========
+
+  @Test
+  void testFetchAndSaveMovie_Success() {
+    // Arrange
+    Integer tmdbId = 603;
+    TmdbMovieResponse movieResponse = createMovieResponse(tmdbId);
+    Title savedTitle = new Title();
+    savedTitle.setId(testMovieId);
+    savedTitle.setTmdbId(tmdbId);
+    savedTitle.setTitle("The Matrix");
+
+    when(tmdbService.getMovieDetails(tmdbId)).thenReturn(movieResponse);
+    when(titleMapper.toTitle(movieResponse)).thenReturn(testMovie);
+    when(titleRepository.save(testMovie)).thenReturn(savedTitle);
+    when(genreRepository.findById(28)).thenReturn(Optional.empty());
+    when(genreRepository.save(any(Genre.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    when(titleGenreRepository.existsById(any(TitleGenreId.class))).thenReturn(false);
+    when(titleGenreRepository.save(any(TitleGenre.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    Title result = titleService.fetchAndSaveMovie(tmdbId);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(tmdbId, result.getTmdbId());
+    verify(tmdbService).getMovieDetails(tmdbId);
+    verify(titleMapper).toTitle(movieResponse);
+    verify(titleRepository).save(testMovie);
+    verify(genreRepository).findById(28);
+    verify(titleGenreRepository).save(any(TitleGenre.class));
+  }
+
+  @Test
+  void testFetchAndSaveMovie_TmdbReturnsNull_ThrowsNotFoundException() {
+    // Arrange
+    Integer tmdbId = 999999;
+    when(tmdbService.getMovieDetails(tmdbId)).thenReturn(null);
+
+    // Act & Assert
+    NotFoundException exception = assertThrows(NotFoundException.class,
+        () -> titleService.fetchAndSaveMovie(tmdbId));
+    assertEquals("Movie not found in TMDB: " + tmdbId, exception.getMessage());
+    verify(tmdbService).getMovieDetails(tmdbId);
+    verify(titleMapper, never()).toTitle(any(TmdbMovieResponse.class));
+    verify(titleRepository, never()).save(any());
+  }
+
+  @Test
+  void testFetchAndSaveMovie_WithExistingGenres() {
+    // Arrange
+    Integer tmdbId = 603;
+    TmdbMovieResponse movieResponse = createMovieResponse(tmdbId);
+    Title savedTitle = new Title();
+    savedTitle.setId(testMovieId);
+    savedTitle.setTmdbId(tmdbId);
+
+    Genre existingGenre = new Genre();
+    existingGenre.setId(28);
+    existingGenre.setName("Action");
+
+    when(tmdbService.getMovieDetails(tmdbId)).thenReturn(movieResponse);
+    when(titleMapper.toTitle(movieResponse)).thenReturn(testMovie);
+    when(titleRepository.save(testMovie)).thenReturn(savedTitle);
+    when(genreRepository.findById(28)).thenReturn(Optional.of(existingGenre));
+    when(titleGenreRepository.existsById(any(TitleGenreId.class))).thenReturn(false);
+    when(titleGenreRepository.save(any(TitleGenre.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Act
+    Title result = titleService.fetchAndSaveMovie(tmdbId);
+
+    // Assert
+    assertNotNull(result);
+    verify(genreRepository).findById(28);
+    verify(genreRepository, never()).save(existingGenre); // Existing genre should not be saved again
+  }
+
+  @Test
+  void testFetchAndSaveMovie_WithEmptyGenres() {
+    // Arrange
+    Integer tmdbId = 603;
+    TmdbMovieResponse movieResponse = createMovieResponse(tmdbId);
+    movieResponse.setGenres(null); // No genres
+
+    Title savedTitle = new Title();
+    savedTitle.setId(testMovieId);
+    savedTitle.setTmdbId(tmdbId);
+
+    when(tmdbService.getMovieDetails(tmdbId)).thenReturn(movieResponse);
+    when(titleMapper.toTitle(movieResponse)).thenReturn(testMovie);
+    when(titleRepository.save(testMovie)).thenReturn(savedTitle);
+
+    // Act
+    Title result = titleService.fetchAndSaveMovie(tmdbId);
+
+    // Assert
+    assertNotNull(result);
+    verify(genreRepository, never()).findById(anyInt());
+    verify(titleGenreRepository, never()).save(any(TitleGenre.class));
+  }
+
+  // ========== searchTitles Tests ==========
+
+  @Test
+  void testSearchTitles_Success() {
+    // Arrange
+    String query = "matrix";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> expectedPage = new PageImpl<>(Arrays.asList(testMovie), pageable, 1);
+
+    when(titleRepository.searchTitles(query.trim(), pageable)).thenReturn(expectedPage);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getTotalElements());
+    assertEquals(1, result.getContent().size());
+    verify(titleRepository).searchTitles(query.trim(), pageable);
+    verify(titleRepository, never()).searchTitlesByType(anyString(), any(), any(Pageable.class));
+  }
+
+  @Test
+  void testSearchTitles_WithTypeFilter_Movie() {
+    // Arrange
+    String query = "matrix";
+    String type = "movie";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> expectedPage = new PageImpl<>(Arrays.asList(testMovie), pageable, 1);
+
+    when(titleRepository.searchTitlesByType(query.trim(), Title.TitleType.movie, pageable))
+        .thenReturn(expectedPage);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, type, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getTotalElements());
+    verify(titleRepository).searchTitlesByType(query.trim(), Title.TitleType.movie, pageable);
+    verify(titleRepository, never()).searchTitles(anyString(), any(Pageable.class));
+  }
+
+  @Test
+  void testSearchTitles_WithTypeFilter_TvShow() {
+    // Arrange
+    String query = "breaking";
+    String type = "tv_show";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> expectedPage = new PageImpl<>(Arrays.asList(testTVShow), pageable, 1);
+
+    when(titleRepository.searchTitlesByType(query.trim(), Title.TitleType.tv_show, pageable))
+        .thenReturn(expectedPage);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, type, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getTotalElements());
+    verify(titleRepository).searchTitlesByType(query.trim(), Title.TitleType.tv_show, pageable);
+  }
+
+  @Test
+  void testSearchTitles_EmptyQuery() {
+    // Arrange
+    String query = "";
+    Pageable pageable = PageRequest.of(0, 20);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(0, result.getTotalElements());
+    assertTrue(result.getContent().isEmpty());
+    verify(titleRepository, never()).searchTitles(anyString(), any(Pageable.class));
+    verify(titleRepository, never()).searchTitlesByType(anyString(), any(), any(Pageable.class));
+  }
+
+  @Test
+  void testSearchTitles_NullQuery() {
+    // Arrange
+    Pageable pageable = PageRequest.of(0, 20);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(null, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(0, result.getTotalElements());
+    assertTrue(result.getContent().isEmpty());
+    verify(titleRepository, never()).searchTitles(anyString(), any(Pageable.class));
+  }
+
+  @Test
+  void testSearchTitles_WhitespaceQuery() {
+    // Arrange
+    String query = "   ";
+    Pageable pageable = PageRequest.of(0, 20);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, null, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(0, result.getTotalElements());
+    verify(titleRepository, never()).searchTitles(anyString(), any(Pageable.class));
+  }
+
+  @Test
+  void testSearchTitles_WithInvalidType() {
+    // Arrange
+    String query = "matrix";
+    String type = "invalid_type";
+    Pageable pageable = PageRequest.of(0, 20);
+    Page<Title> expectedPage = new PageImpl<>(Arrays.asList(testMovie), pageable, 1);
+
+    // Invalid type should be ignored, search without type filter
+    when(titleRepository.searchTitles(query.trim(), pageable)).thenReturn(expectedPage);
+
+    // Act
+    Page<Title> result = titleService.searchTitles(query, type, pageable);
+
+    // Assert
+    assertNotNull(result);
+    verify(titleRepository).searchTitles(query.trim(), pageable);
+    verify(titleRepository, never()).searchTitlesByType(anyString(), any(), any(Pageable.class));
+  }
+
+  // ========== getPopularMovies Tests ==========
+
+  @Test
+  void testGetPopularMovies_Success() {
+    // Arrange
+    String language = "en-US";
+    int page = 1;
+    String region = "US";
+    Pageable pageable = PageRequest.of(0, 20);
+
+    TmdbPageResponse.TmdbMovieItem movieItem = createTmdbMovieItem(603, "The Matrix");
+    Page<TmdbPageResponse.TmdbMovieItem> tmdbPage = new PageImpl<>(
+        Arrays.asList(movieItem), PageRequest.of(0, 20), 100);
+
+    when(tmdbService.getPopularMovies(language, 1, region)).thenReturn(tmdbPage);
+    when(titleRepository.findByTmdbId(603)).thenReturn(Optional.empty());
+    when(tmdbService.getImageUrl(anyString(), anyString())).thenAnswer(invocation -> {
+      String path = invocation.getArgument(0);
+      return "https://image.tmdb.org" + path;
+    });
+
+    // Act
+    Page<Title> result = titleService.getPopularMovies(language, page, region, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(100, result.getTotalElements());
+    assertEquals(1, result.getContent().size());
+    verify(tmdbService).getPopularMovies(language, 1, region);
+    verify(titleRepository).findByTmdbId(603);
+    verify(tmdbService, atLeastOnce()).getImageUrl(anyString(), anyString());
+  }
+
+  @Test
+  void testGetPopularMovies_WithExistingTitleInDB() {
+    // Arrange
+    String language = "en-US";
+    int page = 1;
+    String region = "US";
+    Pageable pageable = PageRequest.of(0, 20);
+
+    TmdbPageResponse.TmdbMovieItem movieItem = createTmdbMovieItem(603, "The Matrix");
+    Page<TmdbPageResponse.TmdbMovieItem> tmdbPage = new PageImpl<>(
+        Arrays.asList(movieItem), PageRequest.of(0, 20), 100);
+
+    when(tmdbService.getPopularMovies(language, 1, region)).thenReturn(tmdbPage);
+    when(titleRepository.findByTmdbId(603)).thenReturn(Optional.of(testMovie));
+
+    // Act
+    Page<Title> result = titleService.getPopularMovies(language, page, region, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getContent().size());
+    assertEquals(testMovie, result.getContent().get(0)); // Should return existing title from DB
+    verify(tmdbService).getPopularMovies(language, 1, region);
+    verify(titleRepository).findByTmdbId(603);
+  }
+
+  @Test
+  void testGetPopularMovies_Pagination() {
+    // Arrange
+    String language = "en-US";
+    int page = 2;
+    String region = "US";
+    Pageable pageable = PageRequest.of(1, 6); // Page 2, size 6
+
+    // Create 20 items for TMDB page 1
+    List<TmdbPageResponse.TmdbMovieItem> page1Items = Arrays.asList(
+        createTmdbMovieItem(1, "Movie 1"),
+        createTmdbMovieItem(2, "Movie 2"),
+        createTmdbMovieItem(3, "Movie 3"),
+        createTmdbMovieItem(4, "Movie 4"),
+        createTmdbMovieItem(5, "Movie 5"),
+        createTmdbMovieItem(6, "Movie 6"),
+        createTmdbMovieItem(7, "Movie 7"),
+        createTmdbMovieItem(8, "Movie 8"),
+        createTmdbMovieItem(9, "Movie 9"),
+        createTmdbMovieItem(10, "Movie 10"),
+        createTmdbMovieItem(11, "Movie 11"),
+        createTmdbMovieItem(12, "Movie 12"),
+        createTmdbMovieItem(13, "Movie 13"),
+        createTmdbMovieItem(14, "Movie 14"),
+        createTmdbMovieItem(15, "Movie 15"),
+        createTmdbMovieItem(16, "Movie 16"),
+        createTmdbMovieItem(17, "Movie 17"),
+        createTmdbMovieItem(18, "Movie 18"),
+        createTmdbMovieItem(19, "Movie 19"),
+        createTmdbMovieItem(20, "Movie 20")
+    );
+
+    Page<TmdbPageResponse.TmdbMovieItem> tmdbPage1 = new PageImpl<>(
+        page1Items, PageRequest.of(0, 20), 100);
+
+    when(tmdbService.getPopularMovies(language, 1, region)).thenReturn(tmdbPage1);
+    when(titleRepository.findByTmdbId(anyInt())).thenReturn(Optional.empty());
+    when(tmdbService.getImageUrl(anyString(), anyString())).thenAnswer(invocation -> {
+      String path = invocation.getArgument(0);
+      return "https://image.tmdb.org" + path;
+    });
+
+    // Act
+    Page<Title> result = titleService.getPopularMovies(language, page, region, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(6, result.getContent().size()); // Should return 6 items (page 2, size 6)
+    verify(tmdbService).getPopularMovies(language, 1, region);
+  }
+
+  // ========== getPopularTVShows Tests ==========
+
+  @Test
+  void testGetPopularTVShows_Success() {
+    // Arrange
+    String language = "en-US";
+    int page = 1;
+    Pageable pageable = PageRequest.of(0, 20);
+
+    TmdbPageResponse.TmdbTvSeriesItem tvItem = createTmdbTvSeriesItem(1396, "Breaking Bad");
+    Page<TmdbPageResponse.TmdbTvSeriesItem> tmdbPage = new PageImpl<>(
+        Arrays.asList(tvItem), PageRequest.of(0, 20), 100);
+
+    when(tmdbService.getPopularTVShows(language, 1)).thenReturn(tmdbPage);
+    when(titleRepository.findByTmdbId(1396)).thenReturn(Optional.empty());
+    when(tmdbService.getImageUrl(anyString(), anyString())).thenAnswer(invocation -> {
+      String path = invocation.getArgument(0);
+      return "https://image.tmdb.org" + path;
+    });
+
+    // Act
+    Page<Title> result = titleService.getPopularTVShows(language, page, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(100, result.getTotalElements());
+    assertEquals(1, result.getContent().size());
+    verify(tmdbService).getPopularTVShows(language, 1);
+    verify(titleRepository).findByTmdbId(1396);
+    verify(tmdbService, atLeastOnce()).getImageUrl(anyString(), anyString());
+  }
+
+  @Test
+  void testGetPopularTVShows_WithExistingTitleInDB() {
+    // Arrange
+    String language = "en-US";
+    int page = 1;
+    Pageable pageable = PageRequest.of(0, 20);
+
+    TmdbPageResponse.TmdbTvSeriesItem tvItem = createTmdbTvSeriesItem(1396, "Breaking Bad");
+    Page<TmdbPageResponse.TmdbTvSeriesItem> tmdbPage = new PageImpl<>(
+        Arrays.asList(tvItem), PageRequest.of(0, 20), 100);
+
+    when(tmdbService.getPopularTVShows(language, 1)).thenReturn(tmdbPage);
+    when(titleRepository.findByTmdbId(1396)).thenReturn(Optional.of(testTVShow));
+
+    // Act
+    Page<Title> result = titleService.getPopularTVShows(language, page, pageable);
+
+    // Assert
+    assertNotNull(result);
+    assertEquals(1, result.getContent().size());
+    assertEquals(testTVShow, result.getContent().get(0)); // Should return existing title from DB
+    verify(tmdbService).getPopularTVShows(language, 1);
+    verify(titleRepository).findByTmdbId(1396);
+  }
+
   // Helper methods
+  private TmdbPageResponse.TmdbMovieItem createTmdbMovieItem(Integer id, String title) {
+    TmdbPageResponse.TmdbMovieItem item = new TmdbPageResponse.TmdbMovieItem();
+    item.setId(id);
+    item.setTitle(title);
+    item.setOriginalTitle(title);
+    item.setOverview("Test overview");
+    item.setReleaseDate("1999-03-31");
+    item.setPosterPath("/poster.jpg");
+    item.setBackdropPath("/backdrop.jpg");
+    item.setVoteAverage(8.5);
+    item.setVoteCount(1000);
+    return item;
+  }
+
+  private TmdbPageResponse.TmdbTvSeriesItem createTmdbTvSeriesItem(Integer id, String name) {
+    TmdbPageResponse.TmdbTvSeriesItem item = new TmdbPageResponse.TmdbTvSeriesItem();
+    item.setId(id);
+    item.setName(name);
+    item.setOriginalName(name);
+    item.setOverview("Test overview");
+    item.setFirstAirDate("2008-01-20");
+    item.setPosterPath("/poster.jpg");
+    item.setBackdropPath("/backdrop.jpg");
+    item.setVoteAverage(9.5);
+    item.setVoteCount(2000);
+    return item;
+  }
+
   private TmdbMovieResponse createMovieResponse(Integer tmdbId) {
     TmdbMovieResponse response = new TmdbMovieResponse();
     response.setId(tmdbId);
